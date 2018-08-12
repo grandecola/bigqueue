@@ -2,7 +2,9 @@ package bigqueue
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path"
 	"testing"
@@ -11,21 +13,29 @@ import (
 )
 
 var (
-	testPath = "/tmp/testdir"
+	testPath = path.Join(os.TempDir(), "testdir_%d")
 )
 
-func init() {
-	if err := os.RemoveAll(testPath); err != nil {
-		panic(err)
+func createTestDir(t *testing.T, testDir string) {
+	if _, err := os.Stat(testDir); os.IsNotExist(err) {
+		if err := os.Mkdir(testDir, cFilePerm); err != nil {
+			t.Errorf("unable to create test dir: %s", err)
+		}
 	}
+}
 
-	if err := os.Mkdir(testPath, cFilePerm); err != nil {
-		panic(err)
+func deleteTestDir(t *testing.T, testDir string) {
+	if err := os.RemoveAll(testDir); err != nil {
+		t.Errorf("unable to delete test dir: %s", err)
 	}
 }
 
 func TestIndex(t *testing.T) {
-	qi, err := NewQueueIndex(testPath)
+	testDir := fmt.Sprintf(testPath, rand.Intn(1000))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	qi, err := NewQueueIndex(testDir)
 	if err != nil {
 		t.Error("error in creating new queue index ::", err)
 	}
@@ -59,7 +69,7 @@ func TestIndex(t *testing.T) {
 	assert.Equal(t, 127*1024*1024, offset)
 
 	qi.Flush()
-	indexFile := path.Join(testPath, cIndexFileName)
+	indexFile := path.Join(testDir, cIndexFileName)
 	fd, err := os.Open(indexFile)
 	if err != nil {
 		t.Error("error in opening index file ::", err)
