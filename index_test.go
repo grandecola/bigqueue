@@ -2,7 +2,9 @@ package bigqueue
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path"
 	"testing"
@@ -10,22 +12,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	testPath = "/tmp/testdir"
-)
-
-func init() {
-	if err := os.RemoveAll(testPath); err != nil {
-		panic(err)
-	}
-
-	if err := os.Mkdir(testPath, cFilePerm); err != nil {
-		panic(err)
-	}
-}
-
 func TestIndex(t *testing.T) {
-	qi, err := NewQueueIndex(testPath)
+	testDir := fmt.Sprintf(testPath, rand.Intn(1000))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	qi, err := NewQueueIndex(testDir)
 	if err != nil {
 		t.Error("error in creating new queue index ::", err)
 	}
@@ -59,7 +51,7 @@ func TestIndex(t *testing.T) {
 	assert.Equal(t, 127*1024*1024, offset)
 
 	qi.Flush()
-	indexFile := path.Join(testPath, cIndexFileName)
+	indexFile := path.Join(testDir, cIndexFileName)
 	fd, err := os.Open(indexFile)
 	if err != nil {
 		t.Error("error in opening index file ::", err)
