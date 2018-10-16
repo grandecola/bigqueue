@@ -13,44 +13,48 @@ import (
 )
 
 func TestIndex(t *testing.T) {
-	testDir := fmt.Sprintf(testPath, rand.Intn(1000))
+	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
 	createTestDir(t, testDir)
 	defer deleteTestDir(t, testDir)
 
-	qi, err := NewQueueIndex(testDir)
+	qi, err := newQueueIndex(testDir)
 	if err != nil {
 		t.Error("error in creating new queue index ::", err)
 	}
 
 	var aid, offset int
-	aid, offset = qi.GetHead()
+	aid, offset = qi.getHead()
 	assert.Equal(t, 0, aid)
 	assert.Equal(t, 0, offset)
 
-	aid, offset = qi.GetTail()
+	aid, offset = qi.getTail()
 	assert.Equal(t, 0, aid)
 	assert.Equal(t, 0, offset)
 
-	qi.UpdateHead(0, 8)
-	aid, offset = qi.GetHead()
+	qi.putHead(0, 8)
+	aid, offset = qi.getHead()
 	assert.Equal(t, 0, aid)
 	assert.Equal(t, 8, offset)
 
-	qi.UpdateHead(7, 98)
-	aid, offset = qi.GetHead()
+	qi.putHead(7, 98)
+	aid, offset = qi.getHead()
 	assert.Equal(t, 7, aid)
 	assert.Equal(t, 98, offset)
 
-	aid, offset = qi.GetTail()
+	aid, offset = qi.getTail()
 	assert.Equal(t, 0, aid)
 	assert.Equal(t, 0, offset)
 
-	qi.UpdateTail(9, 127*1024*1024)
-	aid, offset = qi.GetTail()
+	qi.putTail(9, 127*1024*1024)
+	aid, offset = qi.getTail()
 	assert.Equal(t, 9, aid)
 	assert.Equal(t, 127*1024*1024, offset)
 
-	qi.Flush()
+	arenaSize := 8 * 1024 * 1024
+	qi.putArenaSize(arenaSize)
+	assert.Equal(t, qi.getArenaSize(), arenaSize)
+
+	qi.flush()
 	indexFile := path.Join(testDir, cIndexFileName)
 	fd, err := os.Open(indexFile)
 	if err != nil {
@@ -63,7 +67,8 @@ func TestIndex(t *testing.T) {
 	expected := []byte{0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x62, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0xf0, 0x07, 0x00, 0x00, 0x00, 0x00}
+		0x00, 0x00, 0xf0, 0x07, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00}
 	if !bytes.Equal(expected, data) {
 		t.Errorf("index file has unexpected content")
 	}

@@ -11,16 +11,16 @@ const (
 	cFilePerm = 0744
 )
 
-// Arena is an abstraction for a memory mapped file of a given size
-type Arena struct {
+// arena is an abstraction for a memory mapped file of a given size
+type arena struct {
 	*mmap.Mmap
 	size int
 	file string
 }
 
-// NewArena returns pointer to an Arena. It takes a file location and mmaps it.
+// newArena returns pointer to an arena. It takes a file location and mmaps it.
 // If file location does not exist, it creates file of given size.
-func NewArena(file string, size int) (*Arena, error) {
+func newArena(file string, size int) (*arena, error) {
 	fd, err := openOrCreateFile(file, size)
 	if err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func NewArena(file string, size int) (*Arena, error) {
 		return nil, err
 	}
 
-	return &Arena{
+	return &arena{
 		Mmap: m,
 		size: size,
 		file: file,

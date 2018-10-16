@@ -7,55 +7,54 @@ import (
 
 const (
 	cIndexFileName = "index.dat"
-	cIndexFileSize = 4 * 8
-	cFlushFlags    = syscall.SYS_SYNC
+	cIndexFileSize = 5 * 8
 )
 
-// QueueIndex stores head and tail for a BigQueue in an arena
-type QueueIndex struct {
+// queueIndex stores head, tail and config parameters for a BigQueue in an arena
+type queueIndex struct {
 	indexFile  string
-	indexArena *Arena
+	indexArena *arena
 }
 
-// NewQueueIndex creates/reads index for a BigQueue
-func NewQueueIndex(dataDir string) (*QueueIndex, error) {
+// newQueueIndex creates/reads index for a BigQueue
+func newQueueIndex(dataDir string) (*queueIndex, error) {
 	indexFile := path.Join(dataDir, cIndexFileName)
-	indexArena, err := NewArena(indexFile, cIndexFileSize)
+	indexArena, err := newArena(indexFile, cIndexFileSize)
 	if err != nil {
 		return nil, err
 	}
 
-	return &QueueIndex{
+	return &queueIndex{
 		indexFile:  indexFile,
 		indexArena: indexArena,
 	}, nil
 }
 
-// GetHead reads the value of head of the queue from the index arena.
+// getHead reads the value of head of the queue from the index arena.
 // Head of a BigQueue can be identified using -
-//   1. Arena ID
+//   1. arena ID
 //   2. Position (offset) in the arena
 //
 //   <------- head aid ------> <------- head pos ------>
 //  +------------+------------+------------+------------+
-//  | byte 01-03 | byte 04-07 | byte 08-11 | byte 12-15 |
+//  | byte 00-03 | byte 04-07 | byte 08-11 | byte 12-15 |
 //  +------------+------------+------------+------------+
 //
-func (i *QueueIndex) GetHead() (int, int) {
+func (i *queueIndex) getHead() (int, int) {
 	aid := i.indexArena.ReadUint64(0)
 	pos := i.indexArena.ReadUint64(8)
 	return int(aid), int(pos)
 }
 
-// UpdateHead writes the value of head in the index arena
-func (i *QueueIndex) UpdateHead(aid, pos int) {
+// putHead writes the value of head in the index arena
+func (i *queueIndex) putHead(aid, pos int) {
 	i.indexArena.WriteUint64(0, uint64(aid))
 	i.indexArena.WriteUint64(8, uint64(pos))
 }
 
-// GetTail reads the values of tail of the queue from the index arena.
+// getTail reads the values of tail of the queue from the index arena.
 // Tail of a BigQueue, similar to head, can be identified using -
-//   1. Arena ID
+//   1. arena ID
 //   2. Position (offset) in the arena
 //
 //   <------- tail aid ------> <------- tail pos ------>
@@ -63,19 +62,40 @@ func (i *QueueIndex) UpdateHead(aid, pos int) {
 //  | byte 16-19 | byte 20-23 | byte 24-27 | byte 28-31 |
 //  +------------+------------+------------+------------+
 //
-func (i *QueueIndex) GetTail() (int, int) {
+func (i *queueIndex) getTail() (int, int) {
 	aid := i.indexArena.ReadUint64(16)
 	pos := i.indexArena.ReadUint64(24)
 	return int(aid), int(pos)
 }
 
-// UpdateTail writes the value of tail in the index arena
-func (i *QueueIndex) UpdateTail(aid, pos int) {
+// putTail writes the value of tail in the index arena
+func (i *queueIndex) putTail(aid, pos int) {
 	i.indexArena.WriteUint64(16, uint64(aid))
 	i.indexArena.WriteUint64(24, uint64(pos))
 }
 
-// Flush writes the memory state of the index arena on to disk
-func (i *QueueIndex) Flush() {
-	i.indexArena.Flush(cFlushFlags)
+// getArenaSize reads the value of arena size from index
+//
+//   <------ arena size ----->
+//  +------------+------------+
+//  | byte 32-35 | byte 36-39 |
+//  +------------+------------+
+//
+func (i *queueIndex) getArenaSize() int {
+	return int(i.indexArena.ReadUint64(32))
+}
+
+// putArenaSize writes the value of arena size in the index arena
+func (i *queueIndex) putArenaSize(arenaSize int) {
+	i.indexArena.WriteUint64(32, uint64(arenaSize))
+}
+
+// flush writes the memory state of the index arena on to disk
+func (i *queueIndex) flush() {
+	i.indexArena.Flush(syscall.SYS_SYNC)
+}
+
+// close releases all the resources currently used by the index
+func (i *queueIndex) close() {
+	i.indexArena.Unmap()
 }
