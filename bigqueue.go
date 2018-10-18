@@ -21,7 +21,7 @@ var (
 )
 
 // Option is function type that takes a BigQueue object
-//  and sets various config properties of the object
+// and sets various config properties of the object
 type Option func(*BigQueue) error
 
 // BigQueue implements IBigQueue interface
@@ -45,7 +45,7 @@ func SetArenaSize(arenaSize int) Option {
 }
 
 // NewBigQueue constructs an instance of *BigQueue
-func NewBigQueue(dir string, opts ...Option) (*BigQueue, error) {
+func NewBigQueue(dir string, opts ...Option) (IBigQueue, error) {
 	complete := false
 
 	// create queue index
