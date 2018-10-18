@@ -59,9 +59,9 @@ func ExternalSort(inputPath, tempPath, outputPath string, maxMemSortSize int) er
 
 // divide step divides all the input data into sorted group of elements.
 // Each group is persisted to disk using bigqueue interface.
-func divide(inputPath, tempPath string, maxMemSortSize int) ([]*bigqueue.BigQueue, error) {
+func divide(inputPath, tempPath string, maxMemSortSize int) ([]bigqueue.IBigQueue, error) {
 	log.Println("reading input file")
-	queues := make([]*bigqueue.BigQueue, 0)
+	queues := make([]bigqueue.IBigQueue, 0)
 
 	// open input file
 	fd, err := os.Open(inputPath)
@@ -126,9 +126,9 @@ func divide(inputPath, tempPath string, maxMemSortSize int) ([]*bigqueue.BigQueu
 }
 
 // merge step merges the sorted group of elements stored in bigqueue using bigqueue
-func merge(tempPath string, queues []*bigqueue.BigQueue) (*bigqueue.BigQueue, error) {
+func merge(tempPath string, queues []bigqueue.IBigQueue) (bigqueue.IBigQueue, error) {
 	currentQueues := queues
-	nextQueues := make([]*bigqueue.BigQueue, 0)
+	nextQueues := make([]bigqueue.IBigQueue, 0)
 	for iteration := 0; len(currentQueues) != 1; iteration++ {
 		log.Printf("iteration %d, # queues %d\n", iteration, len(currentQueues))
 
@@ -151,13 +151,13 @@ func merge(tempPath string, queues []*bigqueue.BigQueue) (*bigqueue.BigQueue, er
 		}
 
 		currentQueues = nextQueues
-		nextQueues = make([]*bigqueue.BigQueue, 0)
+		nextQueues = make([]bigqueue.IBigQueue, 0)
 	}
 
 	return currentQueues[0], nil
 }
 
-func buildBigQueue(tempPath string, data []int) (*bigqueue.BigQueue, error) {
+func buildBigQueue(tempPath string, data []int) (bigqueue.IBigQueue, error) {
 	bq, err := bigqueue.NewBigQueue(getTempDir(tempPath))
 	if err != nil {
 		return nil, fmt.Errorf("unable to init bigqueue :: %v", err)
@@ -185,7 +185,7 @@ func getTempDir(tempPath string) string {
 	return queuePath
 }
 
-func mergeQueues(q1, q2 *bigqueue.BigQueue, tempPath string) (*bigqueue.BigQueue, error) {
+func mergeQueues(q1, q2 bigqueue.IBigQueue, tempPath string) (bigqueue.IBigQueue, error) {
 	mq, err := bigqueue.NewBigQueue(getTempDir(tempPath))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create bigqueue :: %v", err)
@@ -214,7 +214,7 @@ func mergeQueues(q1, q2 *bigqueue.BigQueue, tempPath string) (*bigqueue.BigQueue
 	}
 
 	// add elements from the non-empty queue
-	var lq *bigqueue.BigQueue
+	var lq bigqueue.IBigQueue
 	if q1.IsEmpty() {
 		lq = q1
 	} else {
@@ -232,7 +232,7 @@ func mergeQueues(q1, q2 *bigqueue.BigQueue, tempPath string) (*bigqueue.BigQueue
 	return mq, nil
 }
 
-func writeToFile(oq *bigqueue.BigQueue, outputPath string) error {
+func writeToFile(oq bigqueue.IBigQueue, outputPath string) error {
 	// write the final output to file
 	od, err := os.Create(outputPath)
 	if err != nil {
