@@ -39,7 +39,7 @@ func newArena(file string, size int) (*arena, error) {
 }
 
 func openOrCreateFile(file string, size int) (*os.File, error) {
-	if _, err := os.Stat(file); err == nil {
+	if _, errExist := os.Stat(file); errExist == nil {
 		// open file
 		fd, err := os.OpenFile(file, os.O_RDWR, cFilePerm)
 		if err != nil {
@@ -47,7 +47,7 @@ func openOrCreateFile(file string, size int) (*os.File, error) {
 		}
 
 		return fd, nil
-	} else if os.IsNotExist(err) {
+	} else if os.IsNotExist(errExist) {
 		// create an empty file
 		fd, err := os.OpenFile(file, os.O_CREATE|os.O_RDWR, cFilePerm)
 		if err != nil {
@@ -61,6 +61,6 @@ func openOrCreateFile(file string, size int) (*os.File, error) {
 
 		return fd, nil
 	} else {
-		return nil, err
+		return nil, errExist
 	}
 }
