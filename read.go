@@ -15,16 +15,6 @@ var (
 
 // Peek returns the head of the queue
 func (bq *BigQueue) Peek() ([]byte, error) {
-	return bq.getQueueHead(false)
-}
-
-// Dequeue removes an element from the queue
-func (bq *BigQueue) Dequeue() ([]byte, error) {
-	return bq.getQueueHead(true)
-}
-
-// getQueueHead gets the head of the queue and deletes the head if dequeue is true
-func (bq *BigQueue) getQueueHead(dequeue bool) ([]byte, error) {
 	if bq.IsEmpty() {
 		return nil, ErrEmptyQueue
 	}
@@ -37,17 +27,33 @@ func (bq *BigQueue) getQueueHead(dequeue bool) ([]byte, error) {
 	aid, offset, length = bq.readLength(aid, offset)
 
 	// read message
-	aid, offset, message, err := bq.readBytes(aid, offset, length)
+	message, err := bq.readBytes(aid, offset, length)
 	if err != nil {
 		return nil, err
 	}
 
-	// update head
-	if dequeue {
-		bq.index.putHead(aid, offset)
+	return message, nil
+}
+
+// Dequeue removes an element from the queue
+func (bq *BigQueue) Dequeue() error {
+	if bq.IsEmpty() {
+		return ErrEmptyQueue
 	}
 
-	return message, nil
+	// read index
+	aid, offset := bq.index.getHead()
+
+	// read length
+	var length int
+	aid, offset, length = bq.readLength(aid, offset)
+
+	// calculate the start point for next element
+	aid += (offset + length) / bq.arenaSize
+	offset = (offset + length) % bq.arenaSize
+	bq.index.putHead(aid, offset)
+
+	return nil
 }
 
 // readLength reads length of the message
@@ -72,14 +78,14 @@ func (bq *BigQueue) readLength(aid, offset int) (int, int, int) {
 }
 
 // readBytes reads length bytes from arena aid starting at offset
-func (bq *BigQueue) readBytes(aid, offset, length int) (int, int, []byte, error) {
+func (bq *BigQueue) readBytes(aid, offset, length int) ([]byte, error) {
 	byteSlice := make([]byte, length)
 
 	counter := 0
 	for {
 		bytesRead, err := bq.arenaList[aid].Read(byteSlice[counter:], offset)
 		if err != nil {
-			return 0, 0, nil, err
+			return nil, err
 		}
 		counter += bytesRead
 		offset += bytesRead
@@ -95,5 +101,5 @@ func (bq *BigQueue) readBytes(aid, offset, length int) (int, int, []byte, error)
 		}
 	}
 
-	return aid, offset, byteSlice, nil
+	return byteSlice, nil
 }

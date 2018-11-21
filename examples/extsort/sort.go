@@ -195,7 +195,7 @@ func mergeQueues(q1, q2 bigqueue.IBigQueue, tempPath string) (bigqueue.IBigQueue
 		e1, err1 := q1.Peek()
 		e2, err2 := q2.Peek()
 		if err1 != nil || err2 != nil {
-			return nil, fmt.Errorf("unable to dequeue :: %v || %v", err1, err2)
+			return nil, fmt.Errorf("unable to peek :: %v || %v", err1, err2)
 		}
 
 		num1, err1 := strconv.Atoi(string(e1))
@@ -205,10 +205,16 @@ func mergeQueues(q1, q2 bigqueue.IBigQueue, tempPath string) (bigqueue.IBigQueue
 		}
 
 		if num1 < num2 {
-			q1.Dequeue()
+			if err := q1.Dequeue(); err != nil {
+				return nil, fmt.Errorf("unable to dequeue :: %v", err1)
+			}
+
 			mq.Enqueue([]byte(strconv.Itoa(num1)))
 		} else {
-			q2.Dequeue()
+			if err := q2.Dequeue(); err != nil {
+				return nil, fmt.Errorf("unable to dequeue :: %v", err1)
+			}
+
 			mq.Enqueue([]byte(strconv.Itoa(num2)))
 		}
 	}
@@ -221,12 +227,15 @@ func mergeQueues(q1, q2 bigqueue.IBigQueue, tempPath string) (bigqueue.IBigQueue
 		lq = q2
 	}
 	for !lq.IsEmpty() {
-		e1, err := lq.Dequeue()
+		e1, err := lq.Peek()
 		if err != nil {
+			return nil, fmt.Errorf("unable to peek :: %v", err)
+		}
+		mq.Enqueue(e1)
+
+		if err := lq.Dequeue(); err != nil {
 			return nil, fmt.Errorf("unable to dequeue :: %v", err)
 		}
-
-		mq.Enqueue(e1)
 	}
 
 	return mq, nil
@@ -242,12 +251,15 @@ func writeToFile(oq bigqueue.IBigQueue, outputPath string) error {
 
 	w := bufio.NewWriter(od)
 	for !oq.IsEmpty() {
-		v, err := oq.Dequeue()
+		v, err := oq.Peek()
 		if err != nil {
+			return fmt.Errorf("unable to peek from bigqueue :: %v", err)
+		}
+		w.WriteString(string(v) + "\n")
+
+		if err := oq.Dequeue(); err != nil {
 			return fmt.Errorf("unable to dequeue from bigqueue :: %v", err)
 		}
-
-		w.WriteString(string(v) + "\n")
 	}
 
 	return w.Flush()

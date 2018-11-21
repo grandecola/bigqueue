@@ -35,8 +35,8 @@ err := bq.Enqueue([]byte("elem"))   // size = 1
 
 Read from bigqueue:
 ```go
-elem, err := bq.Peek()              // size = 1
-elem, err := bq.Dequeue()           // size = 0
+elem, err := bq.Peek()        // size = 1
+err := bq.Dequeue()           // size = 0
 ```
 
 Check whether bigqueue has non zero elements:
