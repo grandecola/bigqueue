@@ -5,6 +5,6 @@ type IBigQueue interface {
 	IsEmpty() bool
 	Peek() ([]byte, error)
 	Enqueue(elem []byte) error
-	Dequeue() ([]byte, error)
+	Dequeue() error
 	Close()
 }

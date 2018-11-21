@@ -19,10 +19,14 @@ func main() {
 	}
 
 	if !bq.IsEmpty() {
-		elem, err := bq.Dequeue()
-		if err != nil {
+		if elem, err := bq.Peek(); err != nil {
+			panic(err)
+		} else {
+			fmt.Println("expected: elem, peeked:", string(elem))
+		}
+
+		if err := bq.Dequeue(); err != nil {
 			panic(err)
 		}
-		fmt.Println("dequeue:", string(elem))
 	}
 }

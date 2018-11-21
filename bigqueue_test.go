@@ -32,7 +32,7 @@ func TestIsEmpty(t *testing.T) {
 		t.Errorf("IsEmpty should return false after enqueue")
 	}
 
-	if _, err := bq.Dequeue(); err != nil {
+	if err := bq.Dequeue(); err != nil {
 		t.Errorf("unable to dequeue message :: %v", err)
 	}
 
@@ -85,8 +85,12 @@ func TestEnqueueSmallMessage(t *testing.T) {
 		t.Errorf("BigQueue should not be empty")
 	}
 
-	poppedMsg, err := bq.Dequeue()
+	poppedMsg, err := bq.Peek()
 	if err != nil {
+		t.Errorf("unable to peek :: %v", err)
+	}
+
+	if err := bq.Dequeue(); err != nil {
 		t.Errorf("unable to dequeue :: %v", err)
 	}
 
@@ -114,8 +118,12 @@ func TestEnqueueLargeMessage(t *testing.T) {
 		t.Errorf("enqueue failed :: %v", err)
 	}
 
-	deQueuedMsg, err := bq.Dequeue()
+	deQueuedMsg, err := bq.Peek()
 	if err != nil {
+		t.Errorf("peek failed :: %v", err)
+	}
+
+	if err := bq.Dequeue(); err != nil {
 		t.Errorf("dequeue failed :: %v", err)
 	}
 
@@ -156,16 +164,22 @@ func TestEnqueueOverlapLength(t *testing.T) {
 		t.Errorf("enqueue failed :: %v", err)
 	}
 
-	dequeueMsg1, err := bq.Dequeue()
+	dequeueMsg1, err := bq.Peek()
 	if err != nil {
+		t.Errorf("peek failed :: %v", err)
+	}
+	if err := bq.Dequeue(); err != nil {
 		t.Errorf("dequeue failed :: %v", err)
 	}
 	if bytes.Compare(dequeueMsg1, msg1) != 0 {
 		t.Errorf("dequeued and enqeued messages are not equal")
 	}
 
-	dequeueMsg2, err := bq.Dequeue()
+	dequeueMsg2, err := bq.Peek()
 	if err != nil {
+		t.Errorf("peek failed :: %v", err)
+	}
+	if err := bq.Dequeue(); err != nil {
 		t.Errorf("dequeue failed :: %v", err)
 	}
 	if !bytes.Equal(dequeueMsg2, msg2) {
@@ -209,8 +223,11 @@ func TestEnqueueLargeNumberOfMessages(t *testing.T) {
 	}
 
 	for i := 0; i < numMessages; i++ {
-		msg, err := bq.Dequeue()
+		msg, err := bq.Peek()
 		if err != nil {
+			t.Errorf("uanble to peek message :: %v", err)
+		}
+		if err := bq.Dequeue(); err != nil {
 			t.Errorf("uanble to dequeue message :: %v", err)
 		}
 
@@ -243,8 +260,11 @@ func TestEnqueueZeroLengthMessage(t *testing.T) {
 		t.Errorf("IsEmpty should return false if empty message is present in queue")
 	}
 
-	deQueuedMsg, err := bq.Dequeue()
+	deQueuedMsg, err := bq.Peek()
 	if err != nil {
+		t.Errorf("unable to peek empty message")
+	}
+	if err := bq.Dequeue(); err != nil {
 		t.Errorf("unable to dequeue empty message")
 	}
 
@@ -278,11 +298,11 @@ func TestEnqueueWhenMessageLengthFits(t *testing.T) {
 		t.Errorf("unable to enqueue msg2: %s", err)
 	}
 
-	if _, err := bq.Dequeue(); err != nil {
+	if err := bq.Dequeue(); err != nil {
 		t.Errorf("unable to dequeue msg1: %s", err)
 	}
 
-	if _, err := bq.Dequeue(); err != nil {
+	if err := bq.Dequeue(); err != nil {
 		t.Errorf("unable to dequeue msg2: %s", err)
 	}
 }
@@ -315,8 +335,11 @@ func TestArenaSize(t *testing.T) {
 		t.Errorf("unequal length, eq: %s, dq: %s", string(msg), string(poppedMsg1))
 	}
 
-	poppedMsg2, err := bq.Dequeue()
+	poppedMsg2, err := bq.Peek()
 	if err != nil {
+		t.Errorf("unable to peek :: %v", err)
+	}
+	if err := bq.Dequeue(); err != nil {
 		t.Errorf("unable to dequeue :: %v", err)
 	}
 
@@ -357,8 +380,11 @@ func TestArenaSize2(t *testing.T) {
 			t.Errorf("unequal length, eq: %s, dq: %s", string(msg), string(poppedMsg1))
 		}
 
-		poppedMsg2, err := bq.Dequeue()
+		poppedMsg2, err := bq.Peek()
 		if err != nil {
+			t.Errorf("unable to peek :: %v", err)
+		}
+		if err := bq.Dequeue(); err != nil {
 			t.Errorf("unable to dequeue :: %v", err)
 		}
 
@@ -400,8 +426,11 @@ func TestArenaSize3(t *testing.T) {
 			t.Errorf("unequal length, eq: %s, dq: %s", string(msg), string(poppedMsg1))
 		}
 
-		poppedMsg2, err := bq.Dequeue()
+		poppedMsg2, err := bq.Peek()
 		if err != nil {
+			t.Errorf("unable to peek :: %v", err)
+		}
+		if err := bq.Dequeue(); err != nil {
 			t.Errorf("unable to dequeue :: %v", err)
 		}
 
