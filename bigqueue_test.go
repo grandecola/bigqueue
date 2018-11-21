@@ -14,9 +14,9 @@ func TestIsEmpty(t *testing.T) {
 	createTestDir(t, testDir)
 	defer deleteTestDir(t, testDir)
 
-	bq, err := NewBigQueue(testDir)
-	if err != nil {
-		t.Errorf("unable to get BigQueue: %v", err)
+	bq, errQ := NewBigQueue(testDir)
+	if errQ != nil {
+		t.Errorf("unable to get BigQueue: %v", errQ)
 	}
 
 	if bq.IsEmpty() == false {
@@ -32,7 +32,7 @@ func TestIsEmpty(t *testing.T) {
 		t.Errorf("IsEmpty should return false after enqueue")
 	}
 
-	if _, err = bq.Dequeue(); err != nil {
+	if _, err := bq.Dequeue(); err != nil {
 		t.Errorf("unable to dequeue message :: %v", err)
 	}
 
@@ -46,9 +46,9 @@ func TestPeek(t *testing.T) {
 	createTestDir(t, testDir)
 	defer deleteTestDir(t, testDir)
 
-	bq, err := NewBigQueue(testDir)
-	if err != nil {
-		t.Errorf("unable to get BigQueue :: %v", err)
+	bq, errQ := NewBigQueue(testDir)
+	if errQ != nil {
+		t.Errorf("unable to get BigQueue :: %v", errQ)
 	}
 
 	msg := []byte("abcdefghij")
@@ -71,9 +71,9 @@ func TestEnqueueSmallMessage(t *testing.T) {
 	createTestDir(t, testDir)
 	defer deleteTestDir(t, testDir)
 
-	bq, err := NewBigQueue(testDir)
-	if err != nil {
-		t.Errorf("unable to get BigQueue: %v", err)
+	bq, errQ := NewBigQueue(testDir)
+	if errQ != nil {
+		t.Errorf("unable to get BigQueue: %v", errQ)
 	}
 
 	msg := []byte("abcdefghij")
@@ -100,9 +100,9 @@ func TestEnqueueLargeMessage(t *testing.T) {
 	createTestDir(t, testDir)
 	defer deleteTestDir(t, testDir)
 
-	bq, err := NewBigQueue(testDir)
-	if err != nil {
-		t.Errorf("unable to get BigQueue: %v", err)
+	bq, errQ := NewBigQueue(testDir)
+	if errQ != nil {
+		t.Errorf("unable to get BigQueue: %v", errQ)
 	}
 
 	msg := make([]byte, 0)
@@ -133,9 +133,9 @@ func TestEnqueueOverlapLength(t *testing.T) {
 	createTestDir(t, testDir)
 	defer deleteTestDir(t, testDir)
 
-	bq, err := NewBigQueue(testDir)
-	if err != nil {
-		t.Errorf("unable to get BigQueue: %v", err)
+	bq, errQ := NewBigQueue(testDir)
+	if errQ != nil {
+		t.Errorf("unable to get BigQueue: %v", errQ)
 	}
 
 	msg1 := make([]byte, 0)
@@ -229,9 +229,9 @@ func TestEnqueueZeroLengthMessage(t *testing.T) {
 	createTestDir(t, testDir)
 	defer deleteTestDir(t, testDir)
 
-	bq, err := NewBigQueue(testDir)
-	if err != nil {
-		t.Errorf("unable to get BigQueue: %v", err)
+	bq, errQ := NewBigQueue(testDir)
+	if errQ != nil {
+		t.Errorf("unable to get BigQueue: %v", errQ)
 	}
 
 	emptyMsg := make([]byte, 0)
@@ -262,9 +262,9 @@ func TestArenaSize(t *testing.T) {
 	createTestDir(t, testDir)
 	defer deleteTestDir(t, testDir)
 
-	bq, err := NewBigQueue(testDir, SetArenaSize(8*1024))
-	if err != nil {
-		t.Errorf("unable to get BigQueue: %v", err)
+	bq, errQ := NewBigQueue(testDir, SetArenaSize(8*1024))
+	if errQ != nil {
+		t.Errorf("unable to get BigQueue: %v", errQ)
 	}
 
 	msg := []byte("abcdefghij")
