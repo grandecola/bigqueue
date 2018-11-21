@@ -58,54 +58,42 @@ func (bq *BigQueue) readLength(aid, offset int) (int, int, int) {
 		aid, offset = aid+1, 0
 	}
 
+	// read length
 	length := int(bq.arenaList[aid].ReadUint64(offset))
+
+	// update offset, if offset is equal to arena size,
+	// reset arena to next aid and offset to 0
 	offset += cInt64Size
+	if offset == bq.arenaSize {
+		aid, offset = aid+1, 0
+	}
 
 	return aid, offset, length
 }
 
-// readBytes reads length bytes from arena aid starting at offset, if length
-// is bigger than arena size, it calls readBytesFromMultipleArenas
+// readBytes reads length bytes from arena aid starting at offset
 func (bq *BigQueue) readBytes(aid, offset, length int) (int, int, []byte, error) {
 	byteSlice := make([]byte, length)
-
-	// check if length can be read from same arena
-	if offset+length <= bq.arenaSize {
-		if _, err := bq.arenaList[aid].Read(byteSlice, offset); err != nil {
-			return 0, 0, nil, err
-		}
-
-		offset += length
-	} else {
-		var err error
-		aid, offset, err = bq.readBytesFromMultipleArenas(aid, offset, byteSlice)
-		if err != nil {
-			return 0, 0, nil, err
-		}
-	}
-
-	return aid, offset, byteSlice, nil
-}
-
-// readBytesFromMultipleArenas is called when length to be read is greater than arena size
-func (bq *BigQueue) readBytesFromMultipleArenas(aid, offset int, byteSlice []byte) (
-	int, int, error) {
 
 	counter := 0
 	for {
 		bytesRead, err := bq.arenaList[aid].Read(byteSlice[counter:], offset)
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, nil, err
 		}
 		counter += bytesRead
+		offset += bytesRead
 
-		if counter < len(byteSlice) {
+		// if offset is equal to arena size, reset arena to next aid and offset to 0
+		if offset == bq.arenaSize {
 			aid, offset = aid+1, 0
-		} else {
-			offset = bytesRead
+		}
+
+		// check if all bytes are read
+		if counter == length {
 			break
 		}
 	}
 
-	return aid, offset, nil
+	return aid, offset, byteSlice, nil
 }

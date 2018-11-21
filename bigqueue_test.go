@@ -257,6 +257,36 @@ func TestEnqueueZeroLengthMessage(t *testing.T) {
 	}
 }
 
+func TestEnqueueWhenMessageLengthFits(t *testing.T) {
+	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	arenaSize := 4 * 1024
+	bq, errQ := NewBigQueue(testDir, SetArenaSize(arenaSize))
+	if errQ != nil {
+		t.Errorf("unable to get BigQueue: %v", errQ)
+	}
+
+	msg1 := bytes.Repeat([]byte("a"), arenaSize-16)
+	if err := bq.Enqueue(msg1); err != nil {
+		t.Errorf("unable to enqueue msg1: %s", err)
+	}
+
+	msg2 := bytes.Repeat([]byte("b"), 3*arenaSize)
+	if err := bq.Enqueue(msg2); err != nil {
+		t.Errorf("unable to enqueue msg2: %s", err)
+	}
+
+	if _, err := bq.Dequeue(); err != nil {
+		t.Errorf("unable to dequeue msg1: %s", err)
+	}
+
+	if _, err := bq.Dequeue(); err != nil {
+		t.Errorf("unable to dequeue msg2: %s", err)
+	}
+}
+
 func TestArenaSize(t *testing.T) {
 	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
 	createTestDir(t, testDir)
