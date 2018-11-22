@@ -88,9 +88,8 @@ func NewBigQueue(dir string, opts ...Option) (IBigQueue, error) {
 	}
 
 	// initialize all the Arenas
-	headAid, _ := index.getHead()
 	tailAid, _ := index.getTail()
-	for i := headAid; i <= tailAid; i++ {
+	for i := 0; i <= tailAid; i++ {
 		if err := bq.addNewArena(i); err != nil {
 			return nil, err
 		}

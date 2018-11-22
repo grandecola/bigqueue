@@ -53,6 +53,7 @@ func ExternalSort(inputPath, tempPath, outputPath string, maxMemSortSize int) er
 	if err := writeToFile(oq, outputPath); err != nil {
 		return fmt.Errorf("error in writing output to file :: %v", err)
 	}
+	oq.Close()
 
 	return nil
 }
@@ -146,6 +147,8 @@ func merge(tempPath string, queues []bigqueue.IBigQueue) (bigqueue.IBigQueue, er
 			if err != nil {
 				return nil, fmt.Errorf("error in merging two queues :: %v", err)
 			}
+			q1.Close()
+			q2.Close()
 
 			nextQueues = append(nextQueues, mq)
 		}
