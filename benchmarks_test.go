@@ -65,20 +65,22 @@ func BenchmarkNewBigQueue(b *testing.B) {
 		param := benchParams[i]
 		b.Run(fmt.Sprintf("ArenaSize-%s", param.arenaSizeString), func(b *testing.B) {
 			b.ReportAllocs()
+			b.StopTimer()
 			for i := 0; i < b.N; i++ {
-				b.StopTimer()
 				dir := path.Join(os.TempDir(), "testdir")
 				createBenchDir(b, path.Join(os.TempDir(), "testdir"))
+
 				b.StartTimer()
 				bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize))
 				if err != nil {
 					b.Errorf("unble to create bigqueue: %s", err)
 				}
 				b.StopTimer()
+
 				bq.Close()
 				removeBenchDir(b, dir)
-				b.StartTimer()
 			}
+			b.StartTimer()
 		})
 	}
 }
@@ -92,13 +94,11 @@ func BenchmarkEnqueue(b *testing.B) {
 
 			dir := path.Join(os.TempDir(), "testdir")
 			createBenchDir(b, dir)
-			defer removeBenchDir(b, dir)
 
 			bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize))
 			if err != nil {
 				b.Errorf("unble to create bigqueue: %s", err)
 			}
-			defer bq.Close()
 
 			b.ReportAllocs()
 			b.ResetTimer()
@@ -107,6 +107,10 @@ func BenchmarkEnqueue(b *testing.B) {
 					b.Errorf("unable to enqueue: %s", err)
 				}
 			}
+
+			b.StopTimer()
+			bq.Close()
+			removeBenchDir(b, dir)
 		})
 	}
 }
@@ -117,15 +121,14 @@ func BenchmarkDequeue(b *testing.B) {
 	for _, param := range benchParams {
 		b.Run(fmt.Sprintf("ArenaSize-%s/MessageSize-%s", param.arenaSizeString,
 			param.messageSizeString), func(b *testing.B) {
+
 			dir := path.Join(os.TempDir(), "testdir")
 			createBenchDir(b, dir)
-			defer removeBenchDir(b, dir)
 
 			bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize))
 			if err != nil {
 				b.Errorf("unble to create bigqueue: %s", err)
 			}
-			defer bq.Close()
 
 			for i := 0; i < b.N; i++ {
 				if err := bq.Enqueue(param.message); err != nil {
@@ -136,10 +139,14 @@ func BenchmarkDequeue(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				if _, err := bq.Dequeue(); err != nil {
+				if err := bq.Dequeue(); err != nil {
 					b.Errorf("unable to dequeue: %s", err)
 				}
 			}
+			b.StopTimer()
+
+			bq.Close()
+			removeBenchDir(b, dir)
 		})
 	}
 }
@@ -153,13 +160,11 @@ func BenchmarkPeek(b *testing.B) {
 
 			dir := path.Join(os.TempDir(), "testdir")
 			createBenchDir(b, dir)
-			defer removeBenchDir(b, dir)
 
 			bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize))
 			if err != nil {
 				b.Errorf("unble to create bigqueue: %s", err)
 			}
-			defer bq.Close()
 
 			if err := bq.Enqueue(param.message); err != nil {
 				b.Errorf("unable to enqueue: %s", err)
@@ -172,6 +177,10 @@ func BenchmarkPeek(b *testing.B) {
 					b.Errorf("unable to peek: %s", err)
 				}
 			}
+
+			b.StopTimer()
+			bq.Close()
+			removeBenchDir(b, dir)
 		})
 	}
 }
