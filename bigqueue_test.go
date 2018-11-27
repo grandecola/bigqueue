@@ -506,3 +506,33 @@ func TestArenaSizeFail2(t *testing.T) {
 		t.Errorf("expected invalid arena size error, got: %v", err)
 	}
 }
+
+func TestArenaSizeNotMultiple(t *testing.T) {
+	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	bq, err := NewBigQueue(testDir, SetArenaSize(5732))
+	if err != nil {
+		t.Errorf("unable to get BigQueue: %v", err)
+	}
+
+	msg := []byte("abcdefghij")
+	if err := bq.Enqueue(msg); err != nil {
+		t.Errorf("enqueue failed :: %v", err)
+	}
+
+	bq.Close()
+	if tempBq, err := NewBigQueue(testDir, SetArenaSize(5732)); err != nil {
+		t.Errorf("unable to get BigQueue: %v", err)
+	} else {
+		bq = tempBq
+	}
+	defer bq.Close()
+
+	if poppedMsg, err := bq.Peek(); err != nil {
+		t.Errorf("unable to peek :: %v", err)
+	} else if !bytes.Equal(msg, poppedMsg) {
+		t.Errorf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
+	}
+}
