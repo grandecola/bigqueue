@@ -20,7 +20,7 @@ func TestIsEmpty(t *testing.T) {
 	}
 	defer bq.Close()
 
-	if bq.IsEmpty() == false {
+	if !bq.IsEmpty() {
 		t.Errorf("BigQueue length should be 0")
 	}
 
@@ -29,7 +29,7 @@ func TestIsEmpty(t *testing.T) {
 		t.Errorf("unable to enqueue message :: %v", err)
 	}
 
-	if bq.IsEmpty() == true {
+	if bq.IsEmpty() {
 		t.Errorf("IsEmpty should return false after enqueue")
 	}
 
@@ -37,7 +37,7 @@ func TestIsEmpty(t *testing.T) {
 		t.Errorf("unable to dequeue message :: %v", err)
 	}
 
-	if bq.IsEmpty() == false {
+	if !bq.IsEmpty() {
 		t.Errorf("BigQueue length should be 0")
 	}
 }
@@ -89,7 +89,7 @@ func TestEnqueueSmallMessage(t *testing.T) {
 		t.Errorf("enqueue failed :: %v", err)
 	}
 
-	if bq.IsEmpty() == true {
+	if bq.IsEmpty() {
 		t.Errorf("BigQueue should not be empty")
 	}
 
@@ -134,7 +134,7 @@ func TestEnqueueLargeMessage(t *testing.T) {
 		t.Errorf("dequeue failed :: %v", err)
 	}
 
-	if bq.IsEmpty() == false {
+	if !bq.IsEmpty() {
 		t.Errorf("IsEmpty should return true")
 	}
 }
@@ -170,7 +170,7 @@ func TestEnqueueOverlapLength(t *testing.T) {
 
 	if dequeueMsg, err := bq.Peek(); err != nil {
 		t.Errorf("peek failed :: %v", err)
-	} else if bytes.Compare(dequeueMsg, msg1) != 0 {
+	} else if !bytes.Equal(dequeueMsg, msg1) {
 		t.Errorf("dequeued and enqeued messages are not equal")
 	}
 	if err := bq.Dequeue(); err != nil {
@@ -186,7 +186,7 @@ func TestEnqueueOverlapLength(t *testing.T) {
 		t.Errorf("dequeue failed :: %v", err)
 	}
 
-	if bq.IsEmpty() == false {
+	if !bq.IsEmpty() {
 		t.Errorf("queue should be empty")
 	}
 }
@@ -325,7 +325,7 @@ func TestReadWriteCornerCases(t *testing.T) {
 			t.Errorf("enqueue failed :: %v", err)
 		}
 
-		if bq.IsEmpty() == true {
+		if bq.IsEmpty() {
 			t.Errorf("BigQueue should not be empty")
 		}
 
@@ -346,7 +346,7 @@ func TestReadWriteCornerCases(t *testing.T) {
 			t.Errorf("unable to dequeue :: %v", err)
 		}
 
-		if bq.IsEmpty() == false {
+		if !bq.IsEmpty() {
 			t.Errorf("BigQueue should be empty")
 		}
 	}
@@ -370,7 +370,7 @@ func TestArenaSize(t *testing.T) {
 		t.Errorf("enqueue failed :: %v", err)
 	}
 
-	if bq.IsEmpty() == true {
+	if bq.IsEmpty() {
 		t.Errorf("BigQueue should not be empty")
 	}
 
@@ -410,7 +410,7 @@ func TestArenaSize2(t *testing.T) {
 		}
 	}
 
-	if bq.IsEmpty() == true {
+	if bq.IsEmpty() {
 		t.Errorf("BigQueue should not be empty")
 	}
 
@@ -452,7 +452,7 @@ func TestArenaSize3(t *testing.T) {
 		}
 	}
 
-	if bq.IsEmpty() == true {
+	if bq.IsEmpty() {
 		t.Errorf("BigQueue should not be empty")
 	}
 
