@@ -49,8 +49,8 @@ func (bq *BigQueue) Dequeue() error {
 	aid, offset, length = bq.readLength(aid, offset)
 
 	// calculate the start point for next element
-	aid += (offset + length) / bq.arenaSize
-	offset = (offset + length) % bq.arenaSize
+	aid += (offset + length) / bq.conf.arenaSize
+	offset = (offset + length) % bq.conf.arenaSize
 	bq.index.putHead(aid, offset)
 
 	return nil
@@ -60,17 +60,17 @@ func (bq *BigQueue) Dequeue() error {
 func (bq *BigQueue) readLength(aid, offset int) (int, int, int) {
 	// check if length is present in same arena, if not get next arena.
 	// If length is stored in next arena, get next aid with 0 offset value
-	if offset+cInt64Size > bq.arenaSize {
+	if offset+cInt64Size > bq.conf.arenaSize {
 		aid, offset = aid+1, 0
 	}
 
 	// read length
-	length := int(bq.arenaList[aid].ReadUint64(offset))
+	length := int(bq.am.getArena(aid).ReadUint64(offset))
 
 	// update offset, if offset is equal to arena size,
 	// reset arena to next aid and offset to 0
 	offset += cInt64Size
-	if offset == bq.arenaSize {
+	if offset == bq.conf.arenaSize {
 		aid, offset = aid+1, 0
 	}
 
@@ -83,7 +83,7 @@ func (bq *BigQueue) readBytes(aid, offset, length int) ([]byte, error) {
 
 	counter := 0
 	for {
-		bytesRead, err := bq.arenaList[aid].Read(byteSlice[counter:], offset)
+		bytesRead, err := bq.am.getArena(aid).Read(byteSlice[counter:], offset)
 		if err != nil {
 			return nil, err
 		}
@@ -91,7 +91,7 @@ func (bq *BigQueue) readBytes(aid, offset, length int) ([]byte, error) {
 		offset += bytesRead
 
 		// if offset is equal to arena size, reset arena to next aid and offset to 0
-		if offset == bq.arenaSize {
+		if offset == bq.conf.arenaSize {
 			aid, offset = aid+1, 0
 		}
 

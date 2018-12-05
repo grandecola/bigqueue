@@ -25,23 +25,23 @@ func (bq *BigQueue) Enqueue(message []byte) error {
 
 func (bq *BigQueue) writeLength(aid, offset int, length uint64) (int, int, error) {
 	// ensure that new arena is available if needed
-	if cInt64Size+offset >= bq.arenaSize {
-		if err := bq.addNewArena(aid + 1); err != nil {
+	if cInt64Size+offset >= bq.conf.arenaSize {
+		if err := bq.am.addNewArena(aid + 1); err != nil {
 			return 0, 0, err
 		}
 	}
 
 	// check if length can be fit into same arena, if not, get new arena
-	if cInt64Size+offset <= bq.arenaSize {
-		bq.arenaList[aid].WriteUint64(offset, length)
+	if cInt64Size+offset <= bq.conf.arenaSize {
+		bq.am.getArena(aid).WriteUint64(offset, length)
 	} else {
 		aid, offset = aid+1, 0
-		bq.arenaList[aid].WriteUint64(offset, length)
+		bq.am.getArena(aid).WriteUint64(offset, length)
 	}
 
 	// update offset now
 	offset += cInt64Size
-	if offset == bq.arenaSize {
+	if offset == bq.conf.arenaSize {
 		aid, offset = aid+1, 0
 	}
 
@@ -54,7 +54,7 @@ func (bq *BigQueue) writeBytes(aid, offset int, byteSlice []byte) (int, int, err
 
 	counter := 0
 	for {
-		bytesWritten, err := bq.arenaList[aid].Write(byteSlice[counter:], offset)
+		bytesWritten, err := bq.am.getArena(aid).Write(byteSlice[counter:], offset)
 		if err != nil {
 			return 0, 0, err
 		}
@@ -62,8 +62,8 @@ func (bq *BigQueue) writeBytes(aid, offset int, byteSlice []byte) (int, int, err
 		offset += bytesWritten
 
 		// ensure the next arena is available if needed
-		if offset == bq.arenaSize {
-			if err = bq.addNewArena(aid + 1); err != nil {
+		if offset == bq.conf.arenaSize {
+			if err = bq.am.addNewArena(aid + 1); err != nil {
 				return 0, 0, err
 			}
 
