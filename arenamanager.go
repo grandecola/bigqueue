@@ -57,8 +57,13 @@ func (m *arenaManager) addNewArena(aid int) error {
 }
 
 // close unmaps all the arenas managed by arenaManager
-func (m *arenaManager) close() {
+func (m *arenaManager) close() error {
+	var retErr error
 	for _, a := range m.arenaList {
-		a.Unmap()
+		if err := a.Unmap(); err != nil {
+			retErr = err
+		}
 	}
+
+	return retErr
 }

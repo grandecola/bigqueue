@@ -78,7 +78,15 @@ func (bq *BigQueue) IsEmpty() bool {
 }
 
 // Close will close index and arena manager
-func (bq *BigQueue) Close() {
-	bq.index.close()
-	bq.am.close()
+func (bq *BigQueue) Close() error {
+	var retErr error
+	if err := bq.index.close(); err != nil {
+		retErr = err
+	}
+
+	if err := bq.am.close(); err != nil {
+		retErr = err
+	}
+
+	return retErr
 }

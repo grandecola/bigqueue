@@ -38,6 +38,8 @@ func newArena(file string, size int) (*arena, error) {
 	}, nil
 }
 
+// openOrCreateFile opens the file if it exists,
+// otherwise creates a new file of given size
 func openOrCreateFile(file string, size int) (*os.File, error) {
 	if _, errExist := os.Stat(file); errExist == nil {
 		// open file

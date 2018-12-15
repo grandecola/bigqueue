@@ -6,5 +6,5 @@ type IBigQueue interface {
 	Peek() ([]byte, error)
 	Enqueue(elem []byte) error
 	Dequeue() error
-	Close()
+	Close() error
 }

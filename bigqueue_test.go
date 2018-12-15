@@ -3,9 +3,11 @@ package bigqueue
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"path"
+	"strings"
 	"testing"
 )
 
@@ -14,7 +16,7 @@ func TestIsEmpty(t *testing.T) {
 	createTestDir(t, testDir)
 	defer deleteTestDir(t, testDir)
 
-	bq, err := NewBigQueue(testDir)
+	bq, err := NewBigQueue(testDir + "/")
 	if err != nil {
 		t.Errorf("unable to get BigQueue: %v", err)
 	}
@@ -534,5 +536,26 @@ func TestArenaSizeNotMultiple(t *testing.T) {
 		t.Errorf("unable to peek :: %v", err)
 	} else if !bytes.Equal(msg, poppedMsg) {
 		t.Errorf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
+	}
+}
+
+func TestNewBigqueueNoFolder(t *testing.T) {
+	bq, err := NewBigQueue("1/2/3/4/5/6")
+	if !os.IsNotExist(err) || bq != nil {
+		t.Errorf("expected file not exists error, returned: %v", err)
+	}
+}
+
+func TestNewBigqueueTooLargeArena(t *testing.T) {
+	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	arenaSize := math.MaxInt64
+	bq, err := NewBigQueue(testDir, SetArenaSize(arenaSize))
+	if bq != nil || !(strings.Contains(err.Error(), "file too large") ||
+		strings.Contains(err.Error(), "no space left on device")) {
+
+		t.Errorf("expected file too large, returned: %v", err)
 	}
 }
