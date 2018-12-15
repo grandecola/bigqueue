@@ -96,6 +96,6 @@ func (i *queueIndex) flush() {
 }
 
 // close releases all the resources currently used by the index
-func (i *queueIndex) close() {
-	i.indexArena.Unmap()
+func (i *queueIndex) close() error {
+	return i.indexArena.Unmap()
 }
