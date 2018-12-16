@@ -13,7 +13,7 @@ const (
 
 // arena is an abstraction for a memory mapped file of a given size
 type arena struct {
-	*mmap.Mmap
+	mmap.IMmap
 	size int
 	file string
 }
@@ -32,9 +32,9 @@ func newArena(file string, size int) (*arena, error) {
 	}
 
 	return &arena{
-		Mmap: m,
-		size: size,
-		file: file,
+		IMmap: m,
+		size:  size,
+		file:  file,
 	}, nil
 }
 
