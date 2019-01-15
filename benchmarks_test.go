@@ -47,14 +47,14 @@ func getBenchParams() []benchParam {
 func createBenchDir(b *testing.B, dir string) {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		if err := os.Mkdir(dir, 0744); err != nil {
-			b.Errorf("unable to create dir for benchmark: %s", err)
+			b.Fatalf("unable to create dir for benchmark: %s", err)
 		}
 	}
 }
 
 func removeBenchDir(b *testing.B, dir string) {
 	if err := os.RemoveAll(dir); err != nil {
-		b.Errorf("unable to delete dir for benchmark: %s", err)
+		b.Fatalf("unable to delete dir for benchmark: %s", err)
 	}
 }
 
@@ -73,7 +73,7 @@ func BenchmarkNewBigQueue(b *testing.B) {
 				b.StartTimer()
 				bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize))
 				if err != nil {
-					b.Errorf("unble to create bigqueue: %s", err)
+					b.Fatalf("unble to create bigqueue: %s", err)
 				}
 				b.StopTimer()
 
@@ -97,14 +97,14 @@ func BenchmarkEnqueue(b *testing.B) {
 
 			bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize))
 			if err != nil {
-				b.Errorf("unble to create bigqueue: %s", err)
+				b.Fatalf("unble to create bigqueue: %s", err)
 			}
 
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				if err := bq.Enqueue(param.message); err != nil {
-					b.Errorf("unable to enqueue: %s", err)
+					b.Fatalf("unable to enqueue: %s", err)
 				}
 			}
 
@@ -127,12 +127,12 @@ func BenchmarkDequeue(b *testing.B) {
 
 			bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize))
 			if err != nil {
-				b.Errorf("unble to create bigqueue: %s", err)
+				b.Fatalf("unble to create bigqueue: %s", err)
 			}
 
 			for i := 0; i < b.N; i++ {
 				if err := bq.Enqueue(param.message); err != nil {
-					b.Errorf("unable to enqueue: %s", err)
+					b.Fatalf("unable to enqueue: %s", err)
 				}
 			}
 
@@ -140,7 +140,7 @@ func BenchmarkDequeue(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				if err := bq.Dequeue(); err != nil {
-					b.Errorf("unable to dequeue: %s", err)
+					b.Fatalf("unable to dequeue: %s", err)
 				}
 			}
 			b.StopTimer()
@@ -163,18 +163,18 @@ func BenchmarkPeek(b *testing.B) {
 
 			bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize))
 			if err != nil {
-				b.Errorf("unble to create bigqueue: %s", err)
+				b.Fatalf("unble to create bigqueue: %s", err)
 			}
 
 			if err := bq.Enqueue(param.message); err != nil {
-				b.Errorf("unable to enqueue: %s", err)
+				b.Fatalf("unable to enqueue: %s", err)
 			}
 
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				if _, err := bq.Peek(); err != nil {
-					b.Errorf("unable to peek: %s", err)
+					b.Fatalf("unable to peek: %s", err)
 				}
 			}
 
