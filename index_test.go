@@ -19,7 +19,7 @@ func TestIndex(t *testing.T) {
 
 	qi, err := newQueueIndex(testDir)
 	if err != nil {
-		t.Error("error in creating new queue index ::", err)
+		t.Fatal("error in creating new queue index ::", err)
 	}
 
 	var aid, offset int
@@ -58,11 +58,11 @@ func TestIndex(t *testing.T) {
 	indexFile := path.Join(testDir, cIndexFileName)
 	fd, err := os.Open(indexFile)
 	if err != nil {
-		t.Error("error in opening index file ::", err)
+		t.Fatal("error in opening index file ::", err)
 	}
 	data, err := ioutil.ReadAll(fd)
 	if err != nil {
-		t.Error("error in reading index file ::", err)
+		t.Fatal("error in reading index file ::", err)
 	}
 	expected := []byte{0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x62, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -70,6 +70,6 @@ func TestIndex(t *testing.T) {
 		0x00, 0x00, 0xf0, 0x07, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00}
 	if !bytes.Equal(expected, data) {
-		t.Errorf("index file has unexpected content")
+		t.Fatal("index file has unexpected content")
 	}
 }
