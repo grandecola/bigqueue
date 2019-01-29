@@ -23,8 +23,11 @@ func (bq *BigQueue) Peek() ([]byte, error) {
 	aid, offset := bq.index.getHead()
 
 	// read length
-	var length int
-	aid, offset, length = bq.readLength(aid, offset)
+	newAid, newOffset, length, err := bq.readLength(aid, offset)
+	if err != nil {
+		return nil, err
+	}
+	aid, offset = newAid, newOffset
 
 	// read message
 	message, err := bq.readBytes(aid, offset, length)
@@ -45,8 +48,11 @@ func (bq *BigQueue) Dequeue() error {
 	aid, offset := bq.index.getHead()
 
 	// read length
-	var length int
-	aid, offset, length = bq.readLength(aid, offset)
+	newAid, newOffset, length, err := bq.readLength(aid, offset)
+	if err != nil {
+		return err
+	}
+	aid, offset = newAid, newOffset
 
 	// calculate the start point for next element
 	aid += (offset + length) / bq.conf.arenaSize
@@ -57,7 +63,7 @@ func (bq *BigQueue) Dequeue() error {
 }
 
 // readLength reads length of the message
-func (bq *BigQueue) readLength(aid, offset int) (int, int, int) {
+func (bq *BigQueue) readLength(aid, offset int) (int, int, int, error) {
 	// check if length is present in same arena, if not get next arena.
 	// If length is stored in next arena, get next aid with 0 offset value
 	if offset+cInt64Size > bq.conf.arenaSize {
@@ -65,7 +71,11 @@ func (bq *BigQueue) readLength(aid, offset int) (int, int, int) {
 	}
 
 	// read length
-	length := int(bq.am.getArena(aid).ReadUint64(offset))
+	aa, err := bq.am.getArena(aid)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	length := int(aa.ReadUint64(offset))
 
 	// update offset, if offset is equal to arena size,
 	// reset arena to next aid and offset to 0
@@ -74,7 +84,7 @@ func (bq *BigQueue) readLength(aid, offset int) (int, int, int) {
 		aid, offset = aid+1, 0
 	}
 
-	return aid, offset, length
+	return aid, offset, length, nil
 }
 
 // readBytes reads length bytes from arena aid starting at offset
@@ -83,10 +93,16 @@ func (bq *BigQueue) readBytes(aid, offset, length int) ([]byte, error) {
 
 	counter := 0
 	for {
-		bytesRead, err := bq.am.getArena(aid).Read(byteSlice[counter:], offset)
+		aa, err := bq.am.getArena(aid)
 		if err != nil {
 			return nil, err
 		}
+
+		bytesRead, err := aa.Read(byteSlice[counter:], offset)
+		if err != nil {
+			return nil, err
+		}
+
 		counter += bytesRead
 		offset += bytesRead
 
