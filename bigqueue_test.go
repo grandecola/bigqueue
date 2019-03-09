@@ -25,6 +25,13 @@ func deleteTestDir(t *testing.T, testDir string) {
 	}
 }
 
+func checkInMemArenaInvariant(t *testing.T, bq *BigQueue) {
+	if bq.am.inMemArenas > bq.conf.maxInMemArenas {
+		t.Fatalf("# of in memory arenas should not be more than %v, actual: %v",
+			bq.conf.maxInMemArenas, bq.am.inMemArenas)
+	}
+}
+
 func TestIsEmpty(t *testing.T) {
 	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
 	createTestDir(t, testDir)
@@ -572,4 +579,143 @@ func TestNewBigqueueTooLargeArena(t *testing.T) {
 
 		t.Fatalf("expected file too large, returned: %v", err)
 	}
+}
+
+func TestLimitedMemoryErr(t *testing.T) {
+	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	arenaSize := os.Getpagesize() * 2
+	bq, err := NewBigQueue(testDir, SetArenaSize(arenaSize), SetMaxInMemArenas(1))
+	if err != ErrTooFewInMemArenas || bq != nil {
+		t.Fatalf("expected too few in mem arenas error, returned: %v", err)
+	}
+}
+
+func TestLimitedMemoryNoErr(t *testing.T) {
+	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	arenaSize := os.Getpagesize() * 2
+	bq, err := NewBigQueue(testDir, SetArenaSize(arenaSize), SetMaxInMemArenas(0))
+	if err != nil || bq == nil {
+		t.Fatalf("expected no error, returned: %v", err)
+	}
+	bq.Close()
+}
+
+func runTestLimitedMemory(t *testing.T, messageSize, arenaSize, maxInMemArenas int) {
+	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	bq, err := NewBigQueue(testDir, SetArenaSize(arenaSize),
+		SetMaxInMemArenas(maxInMemArenas))
+	if err != nil {
+		t.Fatalf("unable to get BigQueue: %v", err)
+	}
+	defer bq.Close()
+
+	msg := bytes.Repeat([]byte("a"), messageSize)
+	for i := 0; i < 11; i++ {
+		if err := bq.Enqueue(msg); err != nil {
+			t.Fatalf("enqueue failed :: %v", err)
+		}
+
+		checkInMemArenaInvariant(t, bq)
+	}
+
+	for i := 0; i < 5; i++ {
+		if err := bq.Dequeue(); err != nil {
+			t.Fatalf("dequeue failed :: %v", err)
+		}
+
+		checkInMemArenaInvariant(t, bq)
+	}
+
+	for i := 0; i < 5; i++ {
+		if err := bq.Enqueue(msg); err != nil {
+			t.Fatalf("enqueue failed :: %v", err)
+		}
+
+		checkInMemArenaInvariant(t, bq)
+	}
+
+	if bq.IsEmpty() {
+		t.Fatalf("BigQueue should not be empty")
+	}
+
+	bq.Close()
+	if bqTemp, err := NewBigQueue(testDir, SetArenaSize(arenaSize),
+		SetMaxInMemArenas(maxInMemArenas)); err != nil {
+		t.Fatalf("unable to get BigQueue: %v", err)
+	} else {
+		bq = bqTemp
+	}
+
+	for i := 0; i < 7; i++ {
+		if poppedMsg, err := bq.Peek(); err != nil {
+			t.Fatalf("unable to peek :: %v", err)
+		} else if !bytes.Equal(msg, poppedMsg) {
+			t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
+		}
+		checkInMemArenaInvariant(t, bq)
+
+		if poppedMsg, err := bq.Peek(); err != nil {
+			t.Fatalf("unable to peek :: %v", err)
+		} else if !bytes.Equal(msg, poppedMsg) {
+			t.Fatalf("unequal length, eq: %s, dq: %s", string(msg), string(poppedMsg))
+		}
+		checkInMemArenaInvariant(t, bq)
+
+		if err := bq.Dequeue(); err != nil {
+			t.Fatalf("unable to dequeue :: %v", err)
+		}
+		checkInMemArenaInvariant(t, bq)
+
+		if err := bq.Enqueue(msg); err != nil {
+			t.Fatalf("enqueue failed :: %v", err)
+		}
+		checkInMemArenaInvariant(t, bq)
+	}
+
+	for i := 0; i < 11; i++ {
+		if err := bq.Dequeue(); err != nil {
+			t.Fatalf("dequeue failed :: %v", err)
+		}
+
+		checkInMemArenaInvariant(t, bq)
+	}
+}
+
+func TestLimitedMemorySmallMessage(t *testing.T) {
+	arenaSize := os.Getpagesize() * 2
+	runTestLimitedMemory(t, arenaSize-16, arenaSize, 3)
+}
+
+func TestLimitedMemoryLargeMessage(t *testing.T) {
+	arenaSize := os.Getpagesize() * 2
+	runTestLimitedMemory(t, arenaSize*4, arenaSize, 3)
+}
+
+func TestLimitedMemoryHugeMessage1(t *testing.T) {
+	arenaSize := os.Getpagesize() * 2
+	runTestLimitedMemory(t, arenaSize*7-8, arenaSize, 5)
+}
+
+func TestLimitedMemoryHugeMessage2(t *testing.T) {
+	arenaSize := os.Getpagesize() * 2
+	runTestLimitedMemory(t, arenaSize*7, arenaSize, 5)
+}
+
+func TestLimitedMemoryExactMessage1(t *testing.T) {
+	arenaSize := os.Getpagesize() * 2
+	runTestLimitedMemory(t, arenaSize*3-8, arenaSize, 5)
+}
+
+func TestLimitedMemoryExactMessage2(t *testing.T) {
+	arenaSize := os.Getpagesize() * 2
+	runTestLimitedMemory(t, arenaSize-8, arenaSize, 3)
 }

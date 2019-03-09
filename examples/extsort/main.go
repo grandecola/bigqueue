@@ -14,9 +14,10 @@ import (
 )
 
 const (
-	cMaxRandomNum = 10000
+	cMaxRandomNum = 1000000000
 )
 
+// tested with go run sort.go main.go --num 1000000000 --nummem 100000000 -t temp
 func main() {
 	var numDataElements, maxMemSortSize int
 	var inputPath, tempPath, outputPath string
@@ -28,9 +29,11 @@ func main() {
 	flag.Parse()
 
 	// generate random data for testing
-	log.Println("generating random dataset")
-	if err := generateData(numDataElements, cMaxRandomNum, inputPath); err != nil {
-		panic(err)
+	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
+		log.Println("generating random dataset")
+		if err := generateData(numDataElements, cMaxRandomNum, inputPath); err != nil {
+			panic(err)
+		}
 	}
 
 	// sort the data

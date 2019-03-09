@@ -15,11 +15,6 @@ import (
 	"github.com/grandecola/bigqueue"
 )
 
-// TODO:
-//  - release resources for bigqueue
-//  - ensure that we do not cross the available memory
-//  - use fewer queues
-
 var (
 	bqFileIndexCount = 0
 )
@@ -127,6 +122,7 @@ func divide(inputPath, tempPath string, maxMemSortSize int) ([]bigqueue.IBigQueu
 }
 
 // merge step merges the sorted group of elements stored in bigqueue using bigqueue
+// TODO: merge multiple queues together instead of just 2 queues
 func merge(tempPath string, queues []bigqueue.IBigQueue) (bigqueue.IBigQueue, error) {
 	currentQueues := queues
 	nextQueues := make([]bigqueue.IBigQueue, 0)
@@ -161,7 +157,7 @@ func merge(tempPath string, queues []bigqueue.IBigQueue) (bigqueue.IBigQueue, er
 }
 
 func buildBigQueue(tempPath string, data []int) (bigqueue.IBigQueue, error) {
-	bq, err := bigqueue.NewBigQueue(getTempDir(tempPath))
+	bq, err := bigqueue.NewBigQueue(getTempDir(tempPath), bigqueue.SetMaxInMemArenas(3))
 	if err != nil {
 		return nil, fmt.Errorf("unable to init bigqueue :: %v", err)
 	}
@@ -189,7 +185,7 @@ func getTempDir(tempPath string) string {
 }
 
 func mergeQueues(q1, q2 bigqueue.IBigQueue, tempPath string) (bigqueue.IBigQueue, error) {
-	mq, err := bigqueue.NewBigQueue(getTempDir(tempPath))
+	mq, err := bigqueue.NewBigQueue(getTempDir(tempPath), bigqueue.SetMaxInMemArenas(3))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create bigqueue :: %v", err)
 	}

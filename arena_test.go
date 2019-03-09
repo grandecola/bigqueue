@@ -9,9 +9,25 @@ import (
 )
 
 func TestNewArenaNoDir(t *testing.T) {
-	arena, err := newArena(fmt.Sprintf("%d/temp.dat", time.Now().UnixNano()), 100)
-	if arena != nil || err == nil || os.IsExist(err) {
+	aa, err := newArena(fmt.Sprintf("%d/temp.dat", time.Now().UnixNano()), 100)
+	if aa != nil || err == nil || os.IsExist(err) {
 		t.Fatalf("unexpected return for newArena :: %v", err)
+	}
+}
+
+func TestNewArenaNoReadPerm(t *testing.T) {
+	fileName := path.Join(os.TempDir(), "temp.dat")
+	defer os.Remove(fileName)
+	if _, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 000); err != nil {
+		t.Fatalf("unable to create file :: %v", err)
+	}
+
+	arena, err := newArena(fileName, 100)
+	if arena != nil || err == nil || !os.IsPermission(err) {
+		aa, err := newArena("/temp.dat", 100)
+		if aa != nil || err == nil || !os.IsPermission(err) {
+			t.Fatalf("unexpected return for newArena :: %v", err)
+		}
 	}
 }
 
@@ -20,15 +36,20 @@ func TestNewArenaNoFile(t *testing.T) {
 	fileName := path.Join(os.TempDir(), "temp.dat")
 	defer os.Remove(fileName)
 
-	arena, err := newArena(fileName, arenaSize)
+	aa, err := newArena(fileName, arenaSize)
 	if err != nil {
 		t.Fatalf("error in creating new arena: %v", err)
 	}
-	defer arena.Unmap()
+	defer func() {
+		err := aa.Unmap()
+		if err != nil {
+			t.Fatalf("error occurred while unmapping: %v", err)
+		}
+	}()
 
 	// ensure arena struct stores correct size
-	if arena.size != arenaSize {
-		t.Fatalf("arena size do not match, exp: %v, actual: %v", arenaSize, arena.size)
+	if aa.size != arenaSize {
+		t.Fatalf("arena size do not match, exp: %v, actual: %v", arenaSize, aa.size)
 	}
 
 	// ensure underlined file is of correct size
@@ -55,15 +76,20 @@ func TestNewArenaLargerFile(t *testing.T) {
 	}
 
 	// creating new arena
-	arena, err := newArena(fileName, arenaSize)
+	aa, err := newArena(fileName, arenaSize)
 	if err != nil {
 		t.Fatalf("error in creating new arena: %v", err)
 	}
-	defer arena.Unmap()
+	defer func() {
+		err := aa.Unmap()
+		if err != nil {
+			t.Fatalf("error occurred while unmapping: %v", err)
+		}
+	}()
 
 	// ensure arena struct stores correct size
-	if arena.size != arenaSize {
-		t.Fatalf("arena size do not match, exp: %v, actual: %v", arenaSize, arena.size)
+	if aa.size != arenaSize {
+		t.Fatalf("arena size do not match, exp: %v, actual: %v", arenaSize, aa.size)
 	}
 
 	// ensure underlined file is still of original size
@@ -78,8 +104,8 @@ func TestNewArenaLargerFile(t *testing.T) {
 
 func TestNewArenaNoFolder(t *testing.T) {
 	arenaSize := 100
-	arena, err := newArena("1/2/3/4/5/6/arena.dat", arenaSize)
-	if !os.IsNotExist(err) || arena != nil {
+	aa, err := newArena("1/2/3/4/5/6/aa.dat", arenaSize)
+	if !os.IsNotExist(err) || aa != nil {
 		t.Fatalf("expected file not exists error, returned: %v", err)
 	}
 }
