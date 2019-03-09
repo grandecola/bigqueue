@@ -10,6 +10,15 @@ var (
 	ErrInvalidArenaSize = errors.New("mismatch in arena size")
 )
 
+// IBigQueue provides an interface to big, fast and persistent queue
+type IBigQueue interface {
+	IsEmpty() bool
+	Peek() ([]byte, error)
+	Enqueue(elem []byte) error
+	Dequeue() error
+	Close() error
+}
+
 // BigQueue implements IBigQueue interface
 type BigQueue struct {
 	conf  *bqConfig

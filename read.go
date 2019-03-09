@@ -62,7 +62,8 @@ func (bq *BigQueue) Dequeue() error {
 	return nil
 }
 
-// readLength reads length of the message
+// readLength reads length of the message.
+// length is always written in 1 arena, it is never broken across arenas.
 func (bq *BigQueue) readLength(aid, offset int) (int, int, int, error) {
 	// check if length is present in same arena, if not get next arena.
 	// If length is stored in next arena, get next aid with 0 offset value
