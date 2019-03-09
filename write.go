@@ -22,6 +22,8 @@ func (bq *BigQueue) Enqueue(message []byte) error {
 	return nil
 }
 
+// writeLength writes the length into tail arena. Note that length is
+// always written in 1 arena, it is never broken across arenas.
 func (bq *BigQueue) writeLength(aid, offset int, length uint64) (int, int, error) {
 	// ensure that new arena is available if needed
 	if offset+cInt64Size > bq.conf.arenaSize {
