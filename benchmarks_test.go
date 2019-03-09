@@ -9,10 +9,12 @@ import (
 )
 
 type benchParam struct {
-	arenaSize         int
-	arenaSizeString   string
-	message           []byte
-	messageSizeString string
+	arenaSize           int
+	arenaSizeString     string
+	message             []byte
+	messageSizeString   string
+	maxInMemArenaCount  int
+	maxInMemArenaString string
 }
 
 func getBenchParams() []benchParam {
@@ -25,20 +27,62 @@ func getBenchParams() []benchParam {
 	messageMB := bytes.Repeat([]byte(messageBase), 32768)
 
 	baseArenaSize := 4 * 1024
+	maxMemorySize := 1 * 1024 * 1024 * 1024 // 1GB
 
 	benchParams := []benchParam{
-		{baseArenaSize, "4KB", messageBytes, "128B"},
-		{baseArenaSize, "4KB", messageKB, "16KB"},
-		{baseArenaSize, "4KB", messageMB, "1MB"},
-		{32 * baseArenaSize, "128KB", messageBytes, "128B"},
-		{32 * baseArenaSize, "128KB", messageKB, "16KB"},
-		{32 * baseArenaSize, "128KB", messageMB, "1MB"},
-		{1024 * baseArenaSize, "4MB", messageBytes, "128B"},
-		{1024 * baseArenaSize, "4MB", messageKB, "16KB"},
-		{1024 * baseArenaSize, "4MB", messageMB, "1MB"},
-		{32 * 1024 * baseArenaSize, "128MB", messageBytes, "128B"},
-		{32 * 1024 * baseArenaSize, "128MB", messageKB, "16KB"},
-		{32 * 1024 * baseArenaSize, "128MB", messageMB, "1MB"},
+		{baseArenaSize, "4KB", messageBytes, "128B", 3, "12KB"},
+		{baseArenaSize, "4KB", messageBytes, "128B", 10, "40KB"},
+		{baseArenaSize, "4KB", messageBytes, "128B", maxMemorySize / baseArenaSize, "1GB"},
+		{baseArenaSize, "4KB", messageBytes, "128B", 0, "NoLimit"},
+
+		{baseArenaSize, "4KB", messageKB, "16KB", 10, "40KB"},
+		{baseArenaSize, "4KB", messageKB, "16KB", maxMemorySize / baseArenaSize, "1GB"},
+		{baseArenaSize, "4KB", messageKB, "16KB", 0, "NoLimit"},
+
+		{baseArenaSize, "4KB", messageMB, "1MB", maxMemorySize / baseArenaSize, "1GB"},
+		{baseArenaSize, "4KB", messageMB, "1MB", 0, "NoLimit"},
+
+		{32 * baseArenaSize, "128KB", messageBytes, "128B", 3, "384KB"},
+		{32 * baseArenaSize, "128KB", messageBytes, "128B", 10, "1.25MB"},
+		{32 * baseArenaSize, "128KB", messageBytes, "128B", maxMemorySize / baseArenaSize / 32, "1GB"},
+		{32 * baseArenaSize, "128KB", messageBytes, "128B", 0, "NoLimit"},
+
+		{32 * baseArenaSize, "128KB", messageKB, "16KB", 3, "384KB"},
+		{32 * baseArenaSize, "128KB", messageKB, "16KB", 10, "1.25MB"},
+		{32 * baseArenaSize, "128KB", messageKB, "16KB", maxMemorySize / baseArenaSize / 32, "1GB"},
+		{32 * baseArenaSize, "128KB", messageKB, "16KB", 0, "NoLimit"},
+
+		{32 * baseArenaSize, "128KB", messageMB, "1MB", 3, "384KB"},
+		{32 * baseArenaSize, "128KB", messageMB, "1MB", 10, "1.25MB"},
+		{32 * baseArenaSize, "128KB", messageMB, "1MB", maxMemorySize / baseArenaSize / 32, "1GB"},
+		{32 * baseArenaSize, "128KB", messageMB, "1MB", 0, "NoLimit"},
+
+		{1024 * baseArenaSize, "4MB", messageBytes, "128B", 3, "12MB"},
+		{1024 * baseArenaSize, "4MB", messageBytes, "128B", 10, "40MB"},
+		{1024 * baseArenaSize, "4MB", messageBytes, "128B", maxMemorySize / baseArenaSize / 1024, "1GB"},
+		{1024 * baseArenaSize, "4MB", messageBytes, "128B", 0, "NoLimit"},
+
+		{1024 * baseArenaSize, "4MB", messageKB, "16KB", 3, "12MB"},
+		{1024 * baseArenaSize, "4MB", messageKB, "16KB", 10, "40MB"},
+		{1024 * baseArenaSize, "4MB", messageKB, "16KB", maxMemorySize / baseArenaSize / 1024, "1GB"},
+		{1024 * baseArenaSize, "4MB", messageKB, "16KB", 0, "NoLimit"},
+
+		{1024 * baseArenaSize, "4MB", messageMB, "1MB", 3, "12MB"},
+		{1024 * baseArenaSize, "4MB", messageMB, "1MB", 10, "40MB"},
+		{1024 * baseArenaSize, "4MB", messageMB, "1MB", maxMemorySize / baseArenaSize / 1024, "1GB"},
+		{1024 * baseArenaSize, "4MB", messageMB, "1MB", 0, "NoLimit"},
+
+		{32 * 1024 * baseArenaSize, "128MB", messageBytes, "128B", 3, "256MB"},
+		{32 * 1024 * baseArenaSize, "128MB", messageBytes, "128B", 10, "1.25GB"},
+		{32 * 1024 * baseArenaSize, "128MB", messageBytes, "128B", 0, "NoLimit"},
+
+		{32 * 1024 * baseArenaSize, "128MB", messageKB, "16KB", 3, "256MB"},
+		{32 * 1024 * baseArenaSize, "128MB", messageKB, "16KB", 10, "1.25GB"},
+		{32 * 1024 * baseArenaSize, "128MB", messageKB, "16KB", 0, "NoLimit"},
+
+		{32 * 1024 * baseArenaSize, "128MB", messageMB, "1MB", 3, "256MB"},
+		{32 * 1024 * baseArenaSize, "128MB", messageMB, "1MB", 10, "1.25GB"},
+		{32 * 1024 * baseArenaSize, "128MB", messageMB, "1MB", 0, "NoLimit"},
 	}
 
 	return benchParams
@@ -61,8 +105,14 @@ func removeBenchDir(b *testing.B, dir string) {
 func BenchmarkNewBigQueue(b *testing.B) {
 	benchParams := getBenchParams()
 
+	prevValue := -1
 	for i := 0; i < len(benchParams); i += 3 {
 		param := benchParams[i]
+		if prevValue == param.arenaSize {
+			continue
+		}
+		prevValue = param.arenaSize
+
 		b.Run(fmt.Sprintf("ArenaSize-%s", param.arenaSizeString), func(b *testing.B) {
 			b.ReportAllocs()
 			b.StopTimer()
@@ -71,7 +121,8 @@ func BenchmarkNewBigQueue(b *testing.B) {
 				createBenchDir(b, path.Join(os.TempDir(), "testdir"))
 
 				b.StartTimer()
-				bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize))
+				bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize),
+					SetMaxInMemArenas(param.maxInMemArenaCount))
 				if err != nil {
 					b.Fatalf("unble to create bigqueue: %s", err)
 				}
@@ -80,7 +131,6 @@ func BenchmarkNewBigQueue(b *testing.B) {
 				bq.Close()
 				removeBenchDir(b, dir)
 			}
-			b.StartTimer()
 		})
 	}
 }
@@ -89,13 +139,14 @@ func BenchmarkEnqueue(b *testing.B) {
 	benchParams := getBenchParams()
 
 	for _, param := range benchParams {
-		b.Run(fmt.Sprintf("ArenaSize-%s/MessageSize-%s", param.arenaSizeString,
-			param.messageSizeString), func(b *testing.B) {
+		b.Run(fmt.Sprintf("ArenaSize-%s/MessageSize-%s/MaxMem-%s", param.arenaSizeString,
+			param.messageSizeString, param.maxInMemArenaString), func(b *testing.B) {
 
 			dir := path.Join(os.TempDir(), "testdir")
 			createBenchDir(b, dir)
 
-			bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize))
+			bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize),
+				SetMaxInMemArenas(param.maxInMemArenaCount))
 			if err != nil {
 				b.Fatalf("unble to create bigqueue: %s", err)
 			}
@@ -119,13 +170,14 @@ func BenchmarkDequeue(b *testing.B) {
 	benchParams := getBenchParams()
 
 	for _, param := range benchParams {
-		b.Run(fmt.Sprintf("ArenaSize-%s/MessageSize-%s", param.arenaSizeString,
-			param.messageSizeString), func(b *testing.B) {
+		b.Run(fmt.Sprintf("ArenaSize-%s/MessageSize-%s/MaxMem-%s", param.arenaSizeString,
+			param.messageSizeString, param.maxInMemArenaString), func(b *testing.B) {
 
 			dir := path.Join(os.TempDir(), "testdir")
 			createBenchDir(b, dir)
 
-			bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize))
+			bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize),
+				SetMaxInMemArenas(param.maxInMemArenaCount))
 			if err != nil {
 				b.Fatalf("unble to create bigqueue: %s", err)
 			}
@@ -155,13 +207,14 @@ func BenchmarkPeek(b *testing.B) {
 	benchParams := getBenchParams()
 
 	for _, param := range benchParams {
-		b.Run(fmt.Sprintf("ArenaSize-%s/MessageSize-%s", param.arenaSizeString,
-			param.messageSizeString), func(b *testing.B) {
+		b.Run(fmt.Sprintf("ArenaSize-%s/MessageSize-%s/MaxMem-%s", param.arenaSizeString,
+			param.messageSizeString, param.maxInMemArenaString), func(b *testing.B) {
 
 			dir := path.Join(os.TempDir(), "testdir")
 			createBenchDir(b, dir)
 
-			bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize))
+			bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize),
+				SetMaxInMemArenas(param.maxInMemArenaCount))
 			if err != nil {
 				b.Fatalf("unble to create bigqueue: %s", err)
 			}
