@@ -27,7 +27,7 @@ type BigQueue struct {
 }
 
 // NewBigQueue constructs an instance of *BigQueue
-func NewBigQueue(dir string, opts ...Option) (IBigQueue, error) {
+func NewBigQueue(dir string, opts ...Option) (*BigQueue, error) {
 	complete := false
 
 	// setup configuration
@@ -50,9 +50,7 @@ func NewBigQueue(dir string, opts ...Option) (IBigQueue, error) {
 	}()
 
 	// create arena manager
-	headAid, _ := index.getHead()
-	tailAid, _ := index.getTail()
-	am, err := newArenaManager(dir, conf, headAid, tailAid)
+	am, err := newArenaManager(dir, conf, index)
 	if err != nil {
 		return nil, err
 	}

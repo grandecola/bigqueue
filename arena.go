@@ -31,6 +31,11 @@ func newArena(file string, size int) (*arena, error) {
 		return nil, err
 	}
 
+	// We can close the file descriptor here
+	if err := fd.Close(); err != nil {
+		return nil, err
+	}
+
 	return &arena{
 		IMmap: m,
 		size:  size,
