@@ -47,11 +47,6 @@ func TestNewArenaNoFile(t *testing.T) {
 		}
 	}()
 
-	// ensure arena struct stores correct size
-	if aa.size != arenaSize {
-		t.Fatalf("arena size do not match, exp: %v, actual: %v", arenaSize, aa.size)
-	}
-
 	// ensure underlined file is of correct size
 	info, err := os.Stat(fileName)
 	if err != nil {
@@ -86,11 +81,6 @@ func TestNewArenaLargerFile(t *testing.T) {
 			t.Fatalf("error occurred while unmapping: %v", err)
 		}
 	}()
-
-	// ensure arena struct stores correct size
-	if aa.size != arenaSize {
-		t.Fatalf("arena size do not match, exp: %v, actual: %v", arenaSize, aa.size)
-	}
 
 	// ensure underlined file is still of original size
 	info, err := os.Stat(fileName)
