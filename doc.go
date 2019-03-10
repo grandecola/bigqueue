@@ -14,6 +14,15 @@
 //	bq, err := bigqueue.NewBigQueue("path/to/queue", bigqueue.SetArenaSize(4*1024))
 //	defer bq.Close()
 //
+// Bigqueue also allows setting up the maximum possible memory that it
+// can use. By default, the maximum memory is set to [3 x Arena Size].
+//
+//  bq, err := bigqueue.NewBigQueue("path/to/queue", bigqueue.SetArenaSize(4*1024), bigqueue.SetMaxInMemArenas(10))
+//  defer bq.Close()
+//
+// In this case, bigqueue will never allocate more memory than `4KB*10=40KB`. This
+// memory is above and beyond the memory used in buffers for copying data.
+//
 // Write to bigqueue:
 //
 //	err := bq.Enqueue([]byte("elem"))   // size = 1
