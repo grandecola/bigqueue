@@ -22,12 +22,9 @@ func TestNewArenaNoReadPerm(t *testing.T) {
 		t.Fatalf("unable to create file :: %v", err)
 	}
 
-	arena, err := newArena(fileName, 100)
-	if arena != nil || err == nil || !os.IsPermission(err) {
-		aa, err := newArena("/temp.dat", 100)
-		if aa != nil || err == nil || !os.IsPermission(err) {
-			t.Fatalf("unexpected return for newArena :: %v", err)
-		}
+	aa, err := newArena("/temp.dat", 100)
+	if aa != nil || err == nil || !os.IsPermission(err) {
+		t.Fatalf("unexpected return for newArena :: %v", err)
 	}
 }
 
@@ -41,9 +38,9 @@ func TestNewArenaNoFile(t *testing.T) {
 		t.Fatalf("error in creating new arena: %v", err)
 	}
 	defer func() {
-		err := aa.Unmap()
-		if err != nil {
-			t.Fatalf("error occurred while unmapping: %v", err)
+		errUnmap := aa.Unmap()
+		if errUnmap != nil {
+			t.Fatalf("error occurred while unmapping: %v", errUnmap)
 		}
 	}()
 
@@ -76,9 +73,9 @@ func TestNewArenaLargerFile(t *testing.T) {
 		t.Fatalf("error in creating new arena: %v", err)
 	}
 	defer func() {
-		err := aa.Unmap()
-		if err != nil {
-			t.Fatalf("error occurred while unmapping: %v", err)
+		errUnmap := aa.Unmap()
+		if errUnmap != nil {
+			t.Fatalf("error occurred while unmapping: %v", errUnmap)
 		}
 	}()
 

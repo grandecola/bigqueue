@@ -54,7 +54,9 @@ func TestIndex(t *testing.T) {
 	qi.putArenaSize(arenaSize)
 	assert.Equal(t, qi.getArenaSize(), arenaSize)
 
-	qi.flush()
+	if errFlush := qi.flush(); errFlush != nil {
+		t.Fatalf("error in calling flush: %v", errFlush)
+	}
 	indexFile := path.Join(testDir, cIndexFileName)
 	fd, err := os.Open(indexFile)
 	if err != nil {
