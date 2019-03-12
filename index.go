@@ -91,8 +91,8 @@ func (i *queueIndex) putArenaSize(arenaSize int) {
 }
 
 // flush writes the memory state of the index arena on to disk
-func (i *queueIndex) flush() {
-	i.indexArena.Flush(syscall.SYS_SYNC)
+func (i *queueIndex) flush() error {
+	return i.indexArena.Flush(syscall.MS_SYNC)
 }
 
 // close releases all the resources currently used by the index
