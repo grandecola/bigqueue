@@ -41,15 +41,15 @@ func newQueueIndex(dataDir string) (*queueIndex, error) {
 //  +------------+------------+------------+------------+
 //
 func (i *queueIndex) getHead() (int, int) {
-	aid := i.indexArena.ReadUint64(0)
-	pos := i.indexArena.ReadUint64(8)
+	aid := i.indexArena.ReadUint64At(0)
+	pos := i.indexArena.ReadUint64At(8)
 	return int(aid), int(pos)
 }
 
 // putHead writes the value of head in the index arena
 func (i *queueIndex) putHead(aid, pos int) {
-	i.indexArena.WriteUint64(0, uint64(aid))
-	i.indexArena.WriteUint64(8, uint64(pos))
+	i.indexArena.WriteUint64At(uint64(aid), 0)
+	i.indexArena.WriteUint64At(uint64(pos), 8)
 }
 
 // getTail reads the values of tail of the queue from the index arena.
@@ -63,15 +63,15 @@ func (i *queueIndex) putHead(aid, pos int) {
 //  +------------+------------+------------+------------+
 //
 func (i *queueIndex) getTail() (int, int) {
-	aid := i.indexArena.ReadUint64(16)
-	pos := i.indexArena.ReadUint64(24)
+	aid := i.indexArena.ReadUint64At(16)
+	pos := i.indexArena.ReadUint64At(24)
 	return int(aid), int(pos)
 }
 
 // putTail writes the value of tail in the index arena
 func (i *queueIndex) putTail(aid, pos int) {
-	i.indexArena.WriteUint64(16, uint64(aid))
-	i.indexArena.WriteUint64(24, uint64(pos))
+	i.indexArena.WriteUint64At(uint64(aid), 16)
+	i.indexArena.WriteUint64At(uint64(pos), 24)
 }
 
 // getArenaSize reads the value of arena size from index
@@ -82,12 +82,12 @@ func (i *queueIndex) putTail(aid, pos int) {
 //  +------------+------------+
 //
 func (i *queueIndex) getArenaSize() int {
-	return int(i.indexArena.ReadUint64(32))
+	return int(i.indexArena.ReadUint64At(32))
 }
 
 // putArenaSize writes the value of arena size in the index arena
 func (i *queueIndex) putArenaSize(arenaSize int) {
-	i.indexArena.WriteUint64(32, uint64(arenaSize))
+	i.indexArena.WriteUint64At(uint64(arenaSize), 32)
 }
 
 // flush writes the memory state of the index arena on to disk

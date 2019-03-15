@@ -76,7 +76,7 @@ func (bq *BigQueue) readLength(aid, offset int) (int, int, int, error) {
 	if err != nil {
 		return 0, 0, 0, err
 	}
-	length := int(aa.ReadUint64(offset))
+	length := int(aa.ReadUint64At(int64(offset)))
 
 	// update offset, if offset is equal to arena size,
 	// reset arena to next aid and offset to 0
@@ -99,7 +99,7 @@ func (bq *BigQueue) readBytes(aid, offset, length int) ([]byte, error) {
 			return nil, err
 		}
 
-		bytesRead, err := aa.Read(byteSlice[counter:], offset)
+		bytesRead, err := aa.ReadAt(byteSlice[counter:], int64(offset))
 		if err != nil {
 			return nil, err
 		}
