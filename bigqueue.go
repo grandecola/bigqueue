@@ -43,19 +43,16 @@ func NewBigQueue(dir string, opts ...Option) (*BigQueue, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if !complete {
-			index.close()
-		}
-	}()
 
 	// create arena manager
 	am, err := newArenaManager(dir, conf, index)
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() {
 		if !complete {
+			index.close()
 			am.close()
 		}
 	}()
