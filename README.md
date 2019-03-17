@@ -55,7 +55,7 @@ isEmpty := bq.IsEmpty()
 
 ## Benchmarks
 
-Benchmarks are run on a Lenovo P52s laptop (4x2 core, i7, 15.4GB RAM) ubuntu 18.10 AMI, 64 bit machine.
+Benchmarks are run on a Lenovo P52s laptop (i7-8550U, 8 core @1.80GHz, 15.4GB RAM) having ubuntu 18.10, 64 bit machine.
 
 Go version: 1.12
 
