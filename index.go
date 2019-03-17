@@ -1,6 +1,7 @@
 package bigqueue
 
 import (
+	"os"
 	"path"
 	"syscall"
 )
@@ -18,6 +19,10 @@ type queueIndex struct {
 
 // newQueueIndex creates/reads index for a BigQueue
 func newQueueIndex(dataDir string) (*queueIndex, error) {
+	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
+		_ = os.MkdirAll(dataDir, os.ModePerm)
+	}
+
 	indexFile := path.Join(dataDir, cIndexFileName)
 	indexArena, err := newArena(indexFile, cIndexFileSize)
 	if err != nil {

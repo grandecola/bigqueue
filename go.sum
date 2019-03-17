@@ -2,6 +2,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/grandecola/mmap v0.2.0 h1:4s/zu5Cg/OwYf/DyTqoBYTjLi0r2yaoBNxQjtih4mMU=
 github.com/grandecola/mmap v0.2.0/go.mod h1:6Lhf+IGNm1y3FtzfdwcBnl+EGer5COf6SL6Nbh8FWwM=
+github.com/grandecola/mmap v0.3.1 h1:ub7lLj1Vb5QSjlXyyXyw/7ITT1vhuX1lrv9p5ozXffE=
+github.com/grandecola/mmap v0.3.1/go.mod h1:D5tgFYWkYaB2UvX+PxyZcHz/0eHWh/LeTk16q7iGS6I=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.2.2 h1:bSDNvY7ZPG5RlJ8otE/7V6gMiyenm9RtJ7IUVIAoJ1w=
