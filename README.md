@@ -1,7 +1,12 @@
 # bigqueue [![Build Status](https://travis-ci.com/grandecola/bigqueue.svg?branch=master)](https://travis-ci.com/grandecola/bigqueue) [![Go Report Card](https://goreportcard.com/badge/github.com/grandecola/bigqueue)](https://goreportcard.com/report/github.com/grandecola/bigqueue) [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT) [![GoDoc](https://godoc.org/github.com/grandecola/bigqueue?status.svg)](https://godoc.org/github.com/grandecola/bigqueue) [![codecov](https://codecov.io/gh/grandecola/bigqueue/branch/master/graph/badge.svg)](https://codecov.io/gh/grandecola/bigqueue) [![golangci](https://golangci.com/badges/github.com/grandecola/bigqueue.svg)](https://golangci.com/r/github.com/grandecola/bigqueue)
 
 `bigqueue` provides embedded, fast and persistent queue written
-in pure Go using memory mapped (`mmap`) files.
+in pure Go using memory mapped (`mmap`) files. `bigqueue` is
+currently **not** thread safe. Check out the roadmap for
+[v0.3.0](https://github.com/grandecola/bigqueue/milestone/4)
+for more details on progress on thread safety. To use `bigqueue`
+in parallel context, a **Write** lock needs to be acquired
+(even for `Read` APIs).
 
 ## Installation
 ```
