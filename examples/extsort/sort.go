@@ -122,29 +122,34 @@ func divide(inputPath, tempPath string, maxMemSortSize int) ([]bigqueue.IBigQueu
 }
 
 // merge step merges the sorted group of elements stored in bigqueue using bigqueue
-// TODO: merge multiple queues together instead of just 2 queues
 func merge(tempPath string, queues []bigqueue.IBigQueue) (bigqueue.IBigQueue, error) {
 	currentQueues := queues
+	k := 4
 	nextQueues := make([]bigqueue.IBigQueue, 0)
 	for iteration := 0; len(currentQueues) != 1; iteration++ {
 		log.Printf("iteration %d, # queues %d\n", iteration, len(currentQueues))
 
-		for i := 0; i < len(currentQueues); i += 2 {
+		for i := 0; i < len(currentQueues); i += k {
 			// if only one queue is left, just add this queue
-			q1 := currentQueues[i]
 			if i+1 >= len(currentQueues) {
-				nextQueues = append(nextQueues, q1)
+				nextQueues = append(nextQueues, currentQueues[i])
 				continue
 			}
 
-			// otherwise, merge the two queues
-			q2 := currentQueues[i+1]
-			mq, err := mergeQueues(q1, q2, tempPath)
+			lastElem := i + k
+			if lastElem > len(currentQueues) {
+				lastElem = len(currentQueues) - 1
+			}
+
+			queueList := currentQueues[i:lastElem]
+			mq, err := mergeQueues(queueList, tempPath)
 			if err != nil {
 				return nil, fmt.Errorf("error in merging two queues :: %v", err)
 			}
-			q1.Close()
-			q2.Close()
+
+			for j := i; j < lastElem; j += 1 {
+				currentQueues[j].Close()
+			}
 
 			nextQueues = append(nextQueues, mq)
 		}
@@ -184,56 +189,82 @@ func getTempDir(tempPath string) string {
 	return queuePath
 }
 
-func mergeQueues(q1, q2 bigqueue.IBigQueue, tempPath string) (bigqueue.IBigQueue, error) {
+type Pair struct {
+	value, index int
+}
+
+func min(i, j Pair) Pair {
+	if i.value < j.value {
+		return i
+	}
+	return j
+}
+
+func mergeQueues(queueList []bigqueue.IBigQueue, tempPath string) (bigqueue.IBigQueue, error) {
 	mq, err := bigqueue.NewBigQueue(getTempDir(tempPath), bigqueue.SetMaxInMemArenas(3))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create bigqueue :: %v", err)
 	}
 
-	for !q1.IsEmpty() && !q2.IsEmpty() {
-		e1, err1 := q1.Peek()
-		e2, err2 := q2.Peek()
-		if err1 != nil || err2 != nil {
-			return nil, fmt.Errorf("unable to peek :: %v || %v", err1, err2)
+	const max_value = 10000000000
+
+	k := len(queueList)
+	segTree := make([]Pair, 2*k)
+
+	for i := 0; i < k; i += 1 {
+		if queueList[i].IsEmpty() {
+			segTree[i+k] = Pair{max_value, i}
+			continue
 		}
 
-		num1, err1 := strconv.Atoi(string(e1))
-		num2, err2 := strconv.Atoi(string(e2))
-		if err1 != nil || err2 != nil {
-			return nil, fmt.Errorf("error in conversion :: %v || %v", err1, err2)
-		}
-
-		if num1 < num2 {
-			if err := q1.Dequeue(); err != nil {
-				return nil, fmt.Errorf("unable to dequeue :: %v", err1)
-			}
-
-			mq.Enqueue([]byte(strconv.Itoa(num1)))
-		} else {
-			if err := q2.Dequeue(); err != nil {
-				return nil, fmt.Errorf("unable to dequeue :: %v", err1)
-			}
-
-			mq.Enqueue([]byte(strconv.Itoa(num2)))
-		}
-	}
-
-	// add elements from the non-empty queue
-	var lq bigqueue.IBigQueue
-	if q1.IsEmpty() {
-		lq = q1
-	} else {
-		lq = q2
-	}
-	for !lq.IsEmpty() {
-		e1, err := lq.Peek()
+		val, err := queueList[i].Peek()
 		if err != nil {
 			return nil, fmt.Errorf("unable to peek :: %v", err)
 		}
-		mq.Enqueue(e1)
+		num, err := strconv.Atoi(string(val))
+		if err != nil {
+			return nil, fmt.Errorf("error in conversion :: %v ", err)
+		}
 
-		if err := lq.Dequeue(); err != nil {
+		segTree[i+k] = Pair{num, i}
+	}
+
+	for i := k - 1; i > 0; i -= 1 {
+		segTree[i] = min(segTree[2*i], segTree[2*i+1])
+	}
+
+	empty := 0
+
+	for empty < k {
+		top := segTree[1]
+
+		if err := queueList[top.index].Dequeue(); err != nil {
 			return nil, fmt.Errorf("unable to dequeue :: %v", err)
+		}
+
+		mq.Enqueue([]byte(strconv.Itoa(top.value)))
+
+		index := top.index + k
+
+		if queueList[top.index].IsEmpty() {
+			empty += 1
+			segTree[index] = Pair{max_value, top.index}
+		} else {
+			val, err := queueList[top.index].Peek()
+			if err != nil {
+				return nil, fmt.Errorf("unable to peek :: %v", err)
+			}
+
+			num, err := strconv.Atoi(string(val))
+			if err != nil {
+				return nil, fmt.Errorf("error in conversion :: %v ", err)
+			}
+			segTree[index] = Pair{num, top.index}
+		}
+
+		for index != 1 {
+			index = index / 2
+			segTree[index] = min(segTree[index*2], segTree[index*2+1])
 		}
 	}
 
