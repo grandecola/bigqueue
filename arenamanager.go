@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"syscall"
 )
 
 const (
@@ -177,6 +178,28 @@ func (m *arenaManager) deleteArenaBackedFile(aid int) error {
 	filePath := path.Join(m.dir, fmt.Sprintf(cArenaFileFmt, aid))
 	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
 		return err
+	}
+
+	return nil
+}
+
+func (m *arenaManager) flush() error {
+	for _, arena := range m.arenaList {
+		// arena could be nil when it is unloaded from memory to obey maxInMemArenas setting
+		// see ensureEnoughMem()
+		if arena != nil && arena.dirty {
+			if err := arena.Flush(syscall.MS_SYNC); err != nil {
+				return err
+			}
+			arena.dirty = false
+		}
+	}
+
+	if m.index.indexArena.dirty {
+		if err := m.index.flush(); err != nil {
+			return err
+		}
+		m.index.indexArena.dirty = false
 	}
 
 	return nil

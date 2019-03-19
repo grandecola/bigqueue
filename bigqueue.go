@@ -2,6 +2,7 @@ package bigqueue
 
 import (
 	"errors"
+	"time"
 )
 
 var (
@@ -27,6 +28,9 @@ type MmapQueue struct {
 	conf  *bqConfig
 	am    *arenaManager
 	index *queueIndex
+
+	mutateOpsSinceFlush int64
+	prevFlushTime       time.Time
 }
 
 // NewMmapQueue constructs a new persistent queue
@@ -74,9 +78,10 @@ func NewMmapQueue(dir string, opts ...Option) (Queue, error) {
 
 	complete = true
 	return &MmapQueue{
-		conf:  conf,
-		am:    am,
-		index: index,
+		conf:          conf,
+		am:            am,
+		index:         index,
+		prevFlushTime: conf.clock.Now(),
 	}, nil
 }
 
@@ -99,4 +104,18 @@ func (q *MmapQueue) Close() error {
 	}
 
 	return retErr
+}
+
+func (q *MmapQueue) flushIfRequired() error {
+	clock := q.conf.clock
+	shouldFlush := q.mutateOpsSinceFlush >= q.conf.flushIntervalMutateOps
+	shouldFlush = shouldFlush || clock.Since(q.prevFlushTime) >= q.conf.flushElapsedDuration
+	if shouldFlush {
+		if err := q.am.flush(); err != nil {
+			return err
+		}
+		q.mutateOpsSinceFlush = 0
+		q.prevFlushTime = clock.Now()
+	}
+	return nil
 }
