@@ -67,11 +67,12 @@ func (q *MmapQueue) enqueue(w writer) error {
 	if err != nil {
 		return err
 	}
-
 	// update tail
 	q.index.putTail(aid, offset)
 
-	return nil
+	q.mutateOpsSinceFlush++
+
+	return q.flushIfRequired()
 }
 
 // writeLength writes the length into tail arena. Note that length is
@@ -87,6 +88,7 @@ func (q *MmapQueue) writeLength(aid, offset int, length uint64) (int, int, error
 		return 0, 0, err
 	}
 	aa.WriteUint64At(length, int64(offset))
+	aa.dirty = true
 
 	// update offset now
 	offset += cInt64Size
@@ -112,6 +114,7 @@ func (q *MmapQueue) writeBytes(w writer, aid, offset int) (
 		bytesWritten := w.writeTo(aa, offset, counter)
 		counter += bytesWritten
 		offset += bytesWritten
+		aa.dirty = true
 
 		// ensure the next arena is available if needed
 		if offset == q.conf.arenaSize {

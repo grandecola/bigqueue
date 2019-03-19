@@ -50,6 +50,7 @@ func (i *queueIndex) getHead() (int, int) {
 func (i *queueIndex) putHead(aid, pos int) {
 	i.indexArena.WriteUint64At(uint64(aid), 0)
 	i.indexArena.WriteUint64At(uint64(pos), 8)
+	i.indexArena.dirty = true
 }
 
 // getTail reads the values of tail of the queue from the index arena.
@@ -72,6 +73,7 @@ func (i *queueIndex) getTail() (int, int) {
 func (i *queueIndex) putTail(aid, pos int) {
 	i.indexArena.WriteUint64At(uint64(aid), 16)
 	i.indexArena.WriteUint64At(uint64(pos), 24)
+	i.indexArena.dirty = true
 }
 
 // getArenaSize reads the value of arena size from index
@@ -88,6 +90,7 @@ func (i *queueIndex) getArenaSize() int {
 // putArenaSize writes the value of arena size in the index arena
 func (i *queueIndex) putArenaSize(arenaSize int) {
 	i.indexArena.WriteUint64At(uint64(arenaSize), 32)
+	i.indexArena.dirty = true
 }
 
 // flush writes the memory state of the index arena on to disk

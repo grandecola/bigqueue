@@ -108,7 +108,9 @@ func (q *MmapQueue) Dequeue() error {
 	offset = (offset + length) % q.conf.arenaSize
 	q.index.putHead(aid, offset)
 
-	return nil
+	q.mutateOpsSinceFlush++
+
+	return q.flushIfRequired()
 }
 
 // peek reads one element of the queue into given reader.

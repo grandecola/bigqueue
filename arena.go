@@ -14,6 +14,8 @@ const (
 // arena is an abstraction for a memory mapped file of a given size
 type arena struct {
 	mmap.File
+	// TODO: this flag is being touched from a lot of places, we need to encapsulate it's usage better
+	dirty bool
 }
 
 // newArena returns pointer to an arena. It takes a file location and mmaps it.
