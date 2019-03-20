@@ -29,8 +29,8 @@ type bqConfig struct {
 // and sets various config parameters in the object
 type Option func(*bqConfig) error
 
-// newBQConfig creates an object of bqConfig with default parameter values
-func newBQConfig() *bqConfig {
+// newConfig creates an object of bqConfig with default parameter values
+func newConfig() *bqConfig {
 	return &bqConfig{
 		arenaSize:      cDefaultArenaSize,
 		maxInMemArenas: cMinMaxInMemArenas,
