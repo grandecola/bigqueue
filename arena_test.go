@@ -17,7 +17,12 @@ func TestNewArenaNoDir(t *testing.T) {
 
 func TestNewArenaNoReadPerm(t *testing.T) {
 	fileName := path.Join(os.TempDir(), "temp.dat")
-	defer os.Remove(fileName)
+	defer func() {
+		if err := os.Remove(fileName); err != nil {
+			t.Fatalf("error in deleting file: %v :: %v", fileName, err)
+		}
+	}()
+
 	if _, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 000); err != nil {
 		t.Fatalf("unable to create file :: %v", err)
 	}
@@ -31,7 +36,11 @@ func TestNewArenaNoReadPerm(t *testing.T) {
 func TestNewArenaNoFile(t *testing.T) {
 	arenaSize := 100
 	fileName := path.Join(os.TempDir(), "temp.dat")
-	defer os.Remove(fileName)
+	defer func() {
+		if err := os.Remove(fileName); err != nil {
+			t.Fatalf("error in deleting file: %v :: %v", fileName, err)
+		}
+	}()
 
 	aa, err := newArena(fileName, arenaSize)
 	if err != nil {
@@ -57,7 +66,11 @@ func TestNewArenaNoFile(t *testing.T) {
 func TestNewArenaLargerFile(t *testing.T) {
 	arenaSize := 100
 	fileName := path.Join(os.TempDir(), "temp.dat")
-	defer os.Remove(fileName)
+	defer func() {
+		if err := os.Remove(fileName); err != nil {
+			t.Fatalf("error in deleting file: %v :: %v", fileName, err)
+		}
+	}()
 
 	// setup an arena file
 	if _, err := os.Create(fileName); err != nil {

@@ -5,21 +5,21 @@
 //
 // Create or open a bigqueue:
 //
-//	bq, err := bigqueue.NewBigQueue("path/to/queue")
+//	bq, err := bigqueue.NewQueue("path/to/queue")
 //	defer bq.Close()
 //
-// Bigqueue persists the data of the queue in multiple Arenas.
+// bigqueue persists the data of the queue in multiple Arenas.
 // Each Arena is a file on disk that is mapped into memory (RAM)
 // using mmap syscall. Default size of each Arena is set to 128MB.
 // It is possible to create a bigqueue with custom Arena size:
 //
-//	bq, err := bigqueue.NewBigQueue("path/to/queue", bigqueue.SetArenaSize(4*1024))
+//	bq, err := bigqueue.NewQueue("path/to/queue", bigqueue.SetArenaSize(4*1024))
 //	defer bq.Close()
 //
-// Bigqueue also allows setting up the maximum possible memory that it
+// bigqueue also allows setting up the maximum possible memory that it
 // can use. By default, the maximum memory is set to [3 x Arena Size].
 //
-//  bq, err := bigqueue.NewBigQueue("path/to/queue", bigqueue.SetArenaSize(4*1024), bigqueue.SetMaxInMemArenas(10))
+//  bq, err := bigqueue.NewQueue("path/to/queue", bigqueue.SetArenaSize(4*1024), bigqueue.SetMaxInMemArenas(10))
 //  defer bq.Close()
 //
 // In this case, bigqueue will never allocate more memory than `4KB*10=40KB`. This
@@ -29,10 +29,19 @@
 //
 //	err := bq.Enqueue([]byte("elem"))   // size = 1
 //
+// bigqueue allows writing string data directly, avoiding conversion to `[]byte`:
+//
+//  err := bq.EnqueueString("elem")   // size = 2
+//
 // Read from bigqueue:
 //
 //	elem, err := bq.Peek()        // size = 1
 //	err := bq.Dequeue()           // size = 0
+//
+// we can also read string data from bigqueue:
+//
+//  elem, err := bq.PeekString()  // size = 1
+//  err := bq.Dequeue()           // size = 0
 //
 // Check whether bigqueue has non zero elements:
 //

@@ -102,12 +102,9 @@ func removeBenchDir(b *testing.B, dir string) {
 	}
 }
 
-func BenchmarkNewBigQueue(b *testing.B) {
-	benchParams := getBenchParams()
-
+func BenchmarkNewMmapQueue(b *testing.B) {
 	prevValue := -1
-	for i := 0; i < len(benchParams); i += 3 {
-		param := benchParams[i]
+	for _, param := range getBenchParams() {
 		if prevValue == param.arenaSize {
 			continue
 		}
@@ -121,14 +118,14 @@ func BenchmarkNewBigQueue(b *testing.B) {
 				createBenchDir(b, path.Join(os.TempDir(), "testdir"))
 
 				b.StartTimer()
-				bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize),
+				bq, err := NewMmapQueue(dir, SetArenaSize(param.arenaSize),
 					SetMaxInMemArenas(param.maxInMemArenaCount))
 				if err != nil {
 					b.Fatalf("unble to create bigqueue: %s", err)
 				}
 				b.StopTimer()
 
-				bq.Close()
+				_ = bq.Close()
 				removeBenchDir(b, dir)
 			}
 		})
@@ -136,16 +133,14 @@ func BenchmarkNewBigQueue(b *testing.B) {
 }
 
 func BenchmarkEnqueue(b *testing.B) {
-	benchParams := getBenchParams()
-
-	for _, param := range benchParams {
+	for _, param := range getBenchParams() {
 		b.Run(fmt.Sprintf("ArenaSize-%s/MessageSize-%s/MaxMem-%s", param.arenaSizeString,
 			param.messageSizeString, param.maxInMemArenaString), func(b *testing.B) {
 
 			dir := path.Join(os.TempDir(), "testdir")
 			createBenchDir(b, dir)
 
-			bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize),
+			bq, err := NewMmapQueue(dir, SetArenaSize(param.arenaSize),
 				SetMaxInMemArenas(param.maxInMemArenaCount))
 			if err != nil {
 				b.Fatalf("unble to create bigqueue: %s", err)
@@ -160,23 +155,21 @@ func BenchmarkEnqueue(b *testing.B) {
 			}
 
 			b.StopTimer()
-			bq.Close()
+			_ = bq.Close()
 			removeBenchDir(b, dir)
 		})
 	}
 }
 
 func BenchmarkDequeue(b *testing.B) {
-	benchParams := getBenchParams()
-
-	for _, param := range benchParams {
+	for _, param := range getBenchParams() {
 		b.Run(fmt.Sprintf("ArenaSize-%s/MessageSize-%s/MaxMem-%s", param.arenaSizeString,
 			param.messageSizeString, param.maxInMemArenaString), func(b *testing.B) {
 
 			dir := path.Join(os.TempDir(), "testdir")
 			createBenchDir(b, dir)
 
-			bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize),
+			bq, err := NewMmapQueue(dir, SetArenaSize(param.arenaSize),
 				SetMaxInMemArenas(param.maxInMemArenaCount))
 			if err != nil {
 				b.Fatalf("unble to create bigqueue: %s", err)
@@ -197,23 +190,21 @@ func BenchmarkDequeue(b *testing.B) {
 			}
 			b.StopTimer()
 
-			bq.Close()
+			_ = bq.Close()
 			removeBenchDir(b, dir)
 		})
 	}
 }
 
 func BenchmarkPeek(b *testing.B) {
-	benchParams := getBenchParams()
-
-	for _, param := range benchParams {
+	for _, param := range getBenchParams() {
 		b.Run(fmt.Sprintf("ArenaSize-%s/MessageSize-%s/MaxMem-%s", param.arenaSizeString,
 			param.messageSizeString, param.maxInMemArenaString), func(b *testing.B) {
 
 			dir := path.Join(os.TempDir(), "testdir")
 			createBenchDir(b, dir)
 
-			bq, err := NewBigQueue(dir, SetArenaSize(param.arenaSize),
+			bq, err := NewMmapQueue(dir, SetArenaSize(param.arenaSize),
 				SetMaxInMemArenas(param.maxInMemArenaCount))
 			if err != nil {
 				b.Fatalf("unble to create bigqueue: %s", err)
@@ -232,8 +223,44 @@ func BenchmarkPeek(b *testing.B) {
 			}
 
 			b.StopTimer()
-			bq.Close()
+			_ = bq.Close()
 			removeBenchDir(b, dir)
 		})
+	}
+}
+
+func BenchmarkStringDoubleCopy(b *testing.B) {
+	dir := path.Join(os.TempDir(), "testdir")
+	createBenchDir(b, dir)
+	defer removeBenchDir(b, dir)
+
+	bq, err := NewMmapQueue(dir)
+	if err != nil {
+		b.Fatalf("error in creating a queue :: %v", err)
+	}
+
+	data := "aman mangal"
+	for i := 0; i < b.N; i++ {
+		if err := bq.Enqueue([]byte(data)); err != nil {
+			b.Fatalf("error in enqueue :: %v", err)
+		}
+	}
+}
+
+func BenchmarkStringNoCopy(b *testing.B) {
+	dir := path.Join(os.TempDir(), "testdir")
+	createBenchDir(b, dir)
+	defer removeBenchDir(b, dir)
+
+	bq, err := NewMmapQueue(dir)
+	if err != nil {
+		b.Fatalf("error in creating a queue :: %v", err)
+	}
+
+	data := "aman mangal"
+	for i := 0; i < b.N; i++ {
+		if err := bq.EnqueueString(data); err != nil {
+			b.Fatalf("error in enqueue :: %v", err)
+		}
 	}
 }

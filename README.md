@@ -1,12 +1,10 @@
 # bigqueue [![Build Status](https://travis-ci.com/grandecola/bigqueue.svg?branch=master)](https://travis-ci.com/grandecola/bigqueue) [![Go Report Card](https://goreportcard.com/badge/github.com/grandecola/bigqueue)](https://goreportcard.com/report/github.com/grandecola/bigqueue) [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT) [![GoDoc](https://godoc.org/github.com/grandecola/bigqueue?status.svg)](https://godoc.org/github.com/grandecola/bigqueue) [![codecov](https://codecov.io/gh/grandecola/bigqueue/branch/master/graph/badge.svg)](https://codecov.io/gh/grandecola/bigqueue) [![golangci](https://golangci.com/badges/github.com/grandecola/bigqueue.svg)](https://golangci.com/r/github.com/grandecola/bigqueue)
 
-`bigqueue` provides embedded, fast and persistent queue written
-in pure Go using memory mapped (`mmap`) files. `bigqueue` is
-currently **not** thread safe. Check out the roadmap for
-[v0.3.0](https://github.com/grandecola/bigqueue/milestone/4)
-for more details on progress on thread safety. To use `bigqueue`
-in parallel context, a **Write** lock needs to be acquired
-(even for `Read` APIs).
+`bigqueue` provides embedded, fast and persistent queue written in pure Go using
+memory mapped (`mmap`) files. `bigqueue` is currently **not** thread safe. Check
+out the roadmap for [v0.3.0](https://github.com/grandecola/bigqueue/milestone/4)
+for more details on progress on thread safety. To use `bigqueue` in parallel
+context, a **Write** lock needs to be acquired (even for `Read` APIs).
 
 ## Installation
 ```
@@ -20,23 +18,23 @@ go get github.com/grandecola/bigqueue
 ## Usage
 Create or open a bigqueue:
 ```go
-bq, err := bigqueue.NewBigQueue("path/to/queue")
+bq, err := bigqueue.NewMmapQueue("path/to/queue")
 defer bq.Close()
 ```
 
-Bigqueue persists the data of the queue in multiple Arenas.
+bigqueue persists the data of the queue in multiple Arenas.
 Each Arena is a file on disk that is mapped into memory (RAM)
 using mmap syscall. Default size of each Arena is set to 128MB.
 It is possible to create a bigqueue with custom Arena size:
 ```go
-bq, err := bigqueue.NewBigQueue("path/to/queue", bigqueue.SetArenaSize(4*1024))
+bq, err := bigqueue.NewMmapQueue("path/to/queue", bigqueue.SetArenaSize(4*1024))
 defer bq.Close()
 ```
 
 Bigqueue also allows setting up the maximum possible memory that it
 can use. By default, the maximum memory is set to [3 x Arena Size].
 ```go
-bq, err := bigqueue.NewBigQueue("path/to/queue", bigqueue.SetArenaSize(4*1024), bigqueue.SetMaxInMemArenas(10))
+bq, err := bigqueue.NewMmapQueue("path/to/queue", bigqueue.SetArenaSize(4*1024), bigqueue.SetMaxInMemArenas(10))
 defer bq.Close()
 ```
 In this case, bigqueue will never allocate more memory than `4KB*10=40KB`. This
@@ -47,9 +45,20 @@ Write to bigqueue:
 err := bq.Enqueue([]byte("elem"))   // size = 1
 ```
 
+bigqueue allows writing string data directly, avoiding conversion to `[]byte`:
+```go
+err := bq.EnqueueString("elem")   // size = 2
+```
+
 Read from bigqueue:
 ```go
-elem, err := bq.Peek()        // size = 1
+elem, err := bq.Peek()        // size = 2
+err := bq.Dequeue()           // size = 1
+```
+
+we can also read string data from bigqueue:
+```go
+elem, err := bq.PeekString()  // size = 1
 err := bq.Dequeue()           // size = 0
 ```
 
@@ -60,16 +69,17 @@ isEmpty := bq.IsEmpty()
 
 ## Benchmarks
 
-Benchmarks are run on a Lenovo P52s laptop (i7-8550U, 8 core @1.80GHz, 15.4GB RAM) having ubuntu 18.10, 64 bit machine.
+Benchmarks are run on a Lenovo P52s laptop (i7-8550U, 8 core @1.80GHz, 15.4GB RAM)
+having ubuntu 18.10, 64 bit machine.
 
 Go version: 1.12
 
-### NewBigQueue
+### NewMmapQueue
 ```go
-BenchmarkNewBigQueue/ArenaSize-4KB-8         	   50000	     39909 ns/op	    1381 B/op	      30 allocs/op
-BenchmarkNewBigQueue/ArenaSize-128KB-8       	   30000	     40594 ns/op	    1381 B/op	      30 allocs/op
-BenchmarkNewBigQueue/ArenaSize-4MB-8         	   30000	     40160 ns/op	    1381 B/op	      30 allocs/op
-BenchmarkNewBigQueue/ArenaSize-128MB-8       	   30000	     40510 ns/op	    1381 B/op	      30 allocs/op
+BenchmarkNewMmapQueue/ArenaSize-4KB-8         	   50000	     39909 ns/op	    1381 B/op	      30 allocs/op
+BenchmarkNewMmapQueue/ArenaSize-128KB-8       	   30000	     40594 ns/op	    1381 B/op	      30 allocs/op
+BenchmarkNewMmapQueue/ArenaSize-4MB-8         	   30000	     40160 ns/op	    1381 B/op	      30 allocs/op
+BenchmarkNewMmapQueue/ArenaSize-128MB-8       	   30000	     40510 ns/op	    1381 B/op	      30 allocs/op
 ```
 
 ### Enqueue
