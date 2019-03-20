@@ -1,5 +1,7 @@
 // Package bigqueue provides embedded, fast and persistent queue
-// written in pure Go using memory mapped file
+// written in pure Go using memory mapped file. bigqueue is
+// currently not thread safe. To use bigqueue in parallel context,
+// a Write lock needs to be acquired (even for Read APIs).
 //
 // Create or open a bigqueue:
 //

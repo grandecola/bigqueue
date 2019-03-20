@@ -34,7 +34,7 @@ func (bq *BigQueue) writeLength(aid, offset int, length uint64) (int, int, error
 	if err != nil {
 		return 0, 0, err
 	}
-	aa.WriteUint64(offset, length)
+	aa.WriteUint64At(length, int64(offset))
 
 	// update offset now
 	offset += cInt64Size
@@ -57,7 +57,7 @@ func (bq *BigQueue) writeBytes(aid, offset int, byteSlice []byte) (
 			return 0, 0, err
 		}
 
-		bytesWritten, err := aa.Write(byteSlice[counter:], offset)
+		bytesWritten, err := aa.WriteAt(byteSlice[counter:], int64(offset))
 		if err != nil {
 			return 0, 0, err
 		}
