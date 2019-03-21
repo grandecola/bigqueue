@@ -14,6 +14,7 @@ var (
 type IBigQueue interface {
 	IsEmpty() bool
 	Peek() ([]byte, error)
+        PeekAndDequeue() ([]byte, error)
 	Enqueue(elem []byte) error
 	Dequeue() error
 	Close() error

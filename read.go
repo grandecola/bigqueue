@@ -39,6 +39,38 @@ func (bq *BigQueue) Peek() ([]byte, error) {
 }
 
 // Dequeue removes an element from the queue
+func (bq *BigQueue) PeekAndDequeue() ([]byte, error) {
+	if bq.IsEmpty() {
+		return nil, ErrEmptyQueue
+	}
+
+	// read index
+	aid, offset := bq.index.getHead()
+
+	// read length
+	newAid, newOffset, length, err := bq.readLength(aid, offset)
+	if err != nil {
+		return nil, err
+	}
+	aid, offset = newAid, newOffset
+
+	// read message
+	message, err := bq.readBytes(aid, offset, length)
+	if err != nil {
+		return nil, err
+	}
+
+
+	// calculate the start point for next element
+	aid += (offset + length) / bq.conf.arenaSize
+	offset = (offset + length) % bq.conf.arenaSize
+	bq.index.putHead(aid, offset)
+
+	return message, nil
+}
+
+
+// Dequeue removes an element from the queue
 func (bq *BigQueue) Dequeue() error {
 	if bq.IsEmpty() {
 		return ErrEmptyQueue
