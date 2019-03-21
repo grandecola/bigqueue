@@ -15,7 +15,9 @@ var (
 
 // Peek returns the head of the queue
 func (bq *BigQueue) Peek() ([]byte, error) {
+        bq.hLock.RLock()
 	if bq.IsEmpty() {
+                bq.hLock.RUnlock()
 		return nil, ErrEmptyQueue
 	}
 
@@ -25,6 +27,7 @@ func (bq *BigQueue) Peek() ([]byte, error) {
 	// read length
 	newAid, newOffset, length, err := bq.readLength(aid, offset)
 	if err != nil {
+                bq.hLock.RUnlock()
 		return nil, err
 	}
 	aid, offset = newAid, newOffset
@@ -32,15 +35,19 @@ func (bq *BigQueue) Peek() ([]byte, error) {
 	// read message
 	message, err := bq.readBytes(aid, offset, length)
 	if err != nil {
+                bq.hLock.RUnlock()
 		return nil, err
 	}
 
+        bq.hLock.RUnlock()
 	return message, nil
 }
 
 // Dequeue removes an element from the queue
 func (bq *BigQueue) PeekAndDequeue() ([]byte, error) {
+        bq.hLock.Lock()
 	if bq.IsEmpty() {
+                bq.hLock.Unlock()
 		return nil, ErrEmptyQueue
 	}
 
@@ -50,6 +57,7 @@ func (bq *BigQueue) PeekAndDequeue() ([]byte, error) {
 	// read length
 	newAid, newOffset, length, err := bq.readLength(aid, offset)
 	if err != nil {
+                bq.hLock.Unlock()
 		return nil, err
 	}
 	aid, offset = newAid, newOffset
@@ -57,6 +65,7 @@ func (bq *BigQueue) PeekAndDequeue() ([]byte, error) {
 	// read message
 	message, err := bq.readBytes(aid, offset, length)
 	if err != nil {
+                bq.hLock.Unlock()
 		return nil, err
 	}
 
@@ -66,13 +75,16 @@ func (bq *BigQueue) PeekAndDequeue() ([]byte, error) {
 	offset = (offset + length) % bq.conf.arenaSize
 	bq.index.putHead(aid, offset)
 
+        bq.hLock.Unlock()
 	return message, nil
 }
 
 
 // Dequeue removes an element from the queue
 func (bq *BigQueue) Dequeue() error {
+        bq.hLock.Lock()
 	if bq.IsEmpty() {
+                bq.hLock.Unlock()
 		return ErrEmptyQueue
 	}
 
@@ -82,6 +94,7 @@ func (bq *BigQueue) Dequeue() error {
 	// read length
 	newAid, newOffset, length, err := bq.readLength(aid, offset)
 	if err != nil {
+                bq.hLock.Unlock()
 		return err
 	}
 	aid, offset = newAid, newOffset
@@ -91,6 +104,7 @@ func (bq *BigQueue) Dequeue() error {
 	offset = (offset + length) % bq.conf.arenaSize
 	bq.index.putHead(aid, offset)
 
+        bq.hLock.Unlock()
 	return nil
 }
 

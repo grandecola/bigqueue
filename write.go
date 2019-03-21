@@ -2,10 +2,12 @@ package bigqueue
 
 // Enqueue adds a new element to the tail of the queue
 func (bq *BigQueue) Enqueue(message []byte) error {
+        bq.tLock.Lock()
 	aid, offset := bq.index.getTail()
 
 	newAid, newOffset, err := bq.writeLength(aid, offset, uint64(len(message)))
 	if err != nil {
+                bq.tLock.Unlock()
 		return err
 	}
 	aid, offset = newAid, newOffset
@@ -13,12 +15,14 @@ func (bq *BigQueue) Enqueue(message []byte) error {
 	// write message
 	aid, offset, err = bq.writeBytes(aid, offset, message)
 	if err != nil {
+                bq.tLock.Unlock()
 		return err
 	}
 
 	// update tail
 	bq.index.putTail(aid, offset)
 
+        bq.tLock.Unlock()
 	return nil
 }
 

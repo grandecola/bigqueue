@@ -1,6 +1,7 @@
 package bigqueue
 
 import (
+        "sync"
 	"errors"
 )
 
@@ -25,6 +26,8 @@ type BigQueue struct {
 	conf  *bqConfig
 	am    *arenaManager
 	index *queueIndex
+        hLock sync.RWMutex
+        tLock sync.Mutex
 }
 
 // NewBigQueue constructs an instance of *BigQueue
