@@ -21,7 +21,7 @@ const (
 func main() {
 	var numDataElements, maxMemSortSize int
 	var inputPath, tempPath, outputPath string
-	flag.IntVar(&numDataElements, "num", 1000, "# elements to generate & sort")
+	flag.IntVar(&numDataElements, "num", 500000, "# elements to generate & sort")
 	flag.IntVar(&maxMemSortSize, "nummem", 100, "# elements to sort in mem")
 	flag.StringVar(&inputPath, "i", "input.dat", "input file (overwritten)")
 	flag.StringVar(&tempPath, "t", "bq", "path to write intermediate data")

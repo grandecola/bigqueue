@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+        "sync"
 
 	"github.com/grandecola/bigqueue"
 )
@@ -18,6 +19,9 @@ import (
 var (
 	bqFileIndexCount = 0
 )
+
+var lock sync.Mutex
+var nextQueues []bigqueue.IBigQueue
 
 // ExternalSort perform external sort https://en.wikipedia.org/wiki/External_sorting
 // The inputPath should be a path to a file containing integers in each line
@@ -125,35 +129,55 @@ func divide(inputPath, tempPath string, maxMemSortSize int) ([]bigqueue.IBigQueu
 // TODO: merge multiple queues together instead of just 2 queues
 func merge(tempPath string, queues []bigqueue.IBigQueue) (bigqueue.IBigQueue, error) {
 	currentQueues := queues
-	nextQueues := make([]bigqueue.IBigQueue, 0)
+	nextQueues = make([]bigqueue.IBigQueue, 0)
 	for iteration := 0; len(currentQueues) != 1; iteration++ {
 		log.Printf("iteration %d, # queues %d\n", iteration, len(currentQueues))
+                wg := sync.WaitGroup{}
+                val := 0
 
 		for i := 0; i < len(currentQueues); i += 2 {
 			// if only one queue is left, just add this queue
 			q1 := currentQueues[i]
 			if i+1 >= len(currentQueues) {
+                                lock.Lock()
 				nextQueues = append(nextQueues, q1)
+                                lock.Unlock()
 				continue
 			}
 
 			// otherwise, merge the two queues
 			q2 := currentQueues[i+1]
-			mq, err := mergeQueues(q1, q2, tempPath)
-			if err != nil {
-				return nil, fmt.Errorf("error in merging two queues :: %v", err)
-			}
-			q1.Close()
-			q2.Close()
-
-			nextQueues = append(nextQueues, mq)
+                        val = 1
+                        wg.Add(1)
+                        go threaded_merge(q1, q2, tempPath, &wg)
 		}
 
+                if val == 1 {
+                    wg.Wait()
+                }
 		currentQueues = nextQueues
 		nextQueues = make([]bigqueue.IBigQueue, 0)
 	}
 
 	return currentQueues[0], nil
+}
+
+func threaded_merge(q1, q2 bigqueue.IBigQueue, tempPath string, wg *sync.WaitGroup) (error) {
+    mq, err := mergeQueues(q1, q2, tempPath)
+    if err != nil {
+        return fmt.Errorf("error :; %v", err)
+    }
+    q1.Close()
+    q2.Close()
+
+
+    lock.Lock()
+    nextQueues = append(nextQueues, mq)
+    lock.Unlock()
+
+    wg.Done()
+
+    return nil
 }
 
 func buildBigQueue(tempPath string, data []int) (bigqueue.IBigQueue, error) {
