@@ -163,6 +163,7 @@ func merge(tempPath string, queues []bigqueue.IBigQueue) (bigqueue.IBigQueue, er
 }
 
 func threaded_merge(q1, q2 bigqueue.IBigQueue, tempPath string, wg *sync.WaitGroup) (error) {
+    defer wg.Done()
     mq, err := mergeQueues(q1, q2, tempPath)
     if err != nil {
         return fmt.Errorf("error :; %v", err)
@@ -174,8 +175,6 @@ func threaded_merge(q1, q2 bigqueue.IBigQueue, tempPath string, wg *sync.WaitGro
     lock.Lock()
     nextQueues = append(nextQueues, mq)
     lock.Unlock()
-
-    wg.Done()
 
     return nil
 }
