@@ -28,7 +28,7 @@ func producer(bq *bigqueue.BigQueue, wg *sync.WaitGroup) {
         id := rand.Intn(100)
         err := bq.Enqueue([]byte(string(id)))
         ind := atomic.AddUint64(&arrInd, 1);
-        rwArray[ind] = -1
+        rwArray[ind] = 1
 
         if err != nil {
             panic(err)
@@ -44,7 +44,7 @@ func consumer(bq *bigqueue.BigQueue, wg *sync.WaitGroup) {
             continue
         }
         ind := atomic.AddUint64(&arrInd, 1);
-        rwArray[ind] = +1
+        rwArray[ind] = -1
         atomic.AddUint64(&ops, 1)
     }
     wg.Done()
