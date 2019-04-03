@@ -69,10 +69,9 @@ func (q *MmapQueue) enqueue(w writer) error {
 	}
 	// update tail
 	q.index.putTail(aid, offset)
+	q.mutOps++
 
-	q.mutateOpsSinceFlush++
-
-	return q.flushIfRequired()
+	return q.flushPeriodic()
 }
 
 // writeLength writes the length into tail arena. Note that length is

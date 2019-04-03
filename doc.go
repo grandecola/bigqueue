@@ -25,17 +25,20 @@
 // In this case, bigqueue will never allocate more memory than `4KB*10=40KB`. This
 // memory is above and beyond the memory used in buffers for copying data.
 //
-// bigqueue allows to set flush intervals based on either elapsed time or number of mutate operations.
-// Flush syncs the in memory changes of memory mapped files with disk.
-// Note: This is a best effort flush and elapsed time and number of mutate operations are checked upon an enqueue/dequeue.
+// Bigqueue allows to set periodic flush based on either elapsed time or number
+// of mutate (enqueue/dequeue) operations. Flush syncs the in memory changes of all
+// memory mapped files with disk. *This is a best effort flush*. Elapsed time and
+// number of mutate operations are only checked upon an enqueue/dequeue.
 //
-//  bq, err := bigqueue.NewQueue("path/to/queue", bigqueue.SetFlushIntervalMutateOps(2))
+// This is how you can set these options -
 //
-// In this case a flush is done after every two mutate operations.
+//  bq, err := bigqueue.NewQueue("path/to/queue", bigqueue.SetPeriodicFlushOps(2))
 //
-//  bq, err := bigqueue.NewQueue("path/to/queue", bigqueue.SetFlushElapsedDuration(time.Minute))
+// In this case, a flush is done after every two mutate operations.
 //
-// In this case a flush is done after one minute elapses.
+//  bq, err := bigqueue.NewQueue("path/to/queue", bigqueue.SetPeriodicFlushDuration(time.Minute))
+//
+// In this case, a flush is done after one minute elapses and an Enqueue/Dequeue is called.
 //
 // Write to bigqueue:
 //
