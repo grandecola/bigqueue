@@ -2,13 +2,16 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/grandecola/bigqueue"
 )
 
 func main() {
 	bq, err := bigqueue.NewMmapQueue("bq", bigqueue.SetArenaSize(4*1024),
-		bigqueue.SetMaxInMemArenas(4))
+		bigqueue.SetMaxInMemArenas(4),
+		bigqueue.SetPeriodicFlushOps(1),
+		bigqueue.SetPeriodicFlushDuration(time.Second))
 	if err != nil {
 		panic(err)
 	}

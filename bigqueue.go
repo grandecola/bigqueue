@@ -15,6 +15,7 @@ var (
 type Queue interface {
 	IsEmpty() bool
 	Dequeue() error
+	Flush() error
 	Close() error
 
 	Peek() ([]byte, error)
@@ -25,12 +26,11 @@ type Queue interface {
 
 // MmapQueue implements Queue interface
 type MmapQueue struct {
-	conf  *bqConfig
-	am    *arenaManager
-	index *queueIndex
-
-	mutateOpsSinceFlush int64
-	prevFlushTime       time.Time
+	conf      *bqConfig
+	am        *arenaManager
+	index     *queueIndex
+	mutOps    int64
+	lastFlush time.Time
 }
 
 // NewMmapQueue constructs a new persistent queue
@@ -78,10 +78,10 @@ func NewMmapQueue(dir string, opts ...Option) (Queue, error) {
 
 	complete = true
 	return &MmapQueue{
-		conf:          conf,
-		am:            am,
-		index:         index,
-		prevFlushTime: conf.clock.Now(),
+		conf:      conf,
+		am:        am,
+		index:     index,
+		lastFlush: conf.clock.Now(),
 	}, nil
 }
 
@@ -106,16 +106,23 @@ func (q *MmapQueue) Close() error {
 	return retErr
 }
 
-func (q *MmapQueue) flushIfRequired() error {
-	clock := q.conf.clock
-	shouldFlush := q.mutateOpsSinceFlush >= q.conf.flushIntervalMutateOps
-	shouldFlush = shouldFlush || clock.Since(q.prevFlushTime) >= q.conf.flushElapsedDuration
-	if shouldFlush {
-		if err := q.am.flush(); err != nil {
-			return err
-		}
-		q.mutateOpsSinceFlush = 0
-		q.prevFlushTime = clock.Now()
+// Flush syncs the in memory content of bigqueue to disk
+func (q *MmapQueue) Flush() error {
+	if err := q.am.flush(); err != nil {
+		return err
 	}
+
+	q.mutOps = 0
+	q.lastFlush = q.conf.clock.Now()
+	return nil
+}
+
+func (q *MmapQueue) flushPeriodic() error {
+	enoughMutations := q.mutOps >= q.conf.flushMutOps
+	enoughTime := q.conf.clock.Since(q.lastFlush) >= q.conf.flushPeriod
+	if enoughMutations || enoughTime {
+		return q.Flush()
+	}
+
 	return nil
 }
