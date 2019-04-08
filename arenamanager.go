@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sync"
 	"syscall"
 )
 
@@ -19,12 +20,14 @@ var (
 
 // arenaManager manages all the arenas for a bigqueue
 type arenaManager struct {
+	sync.RWMutex
+
 	dir         string
 	conf        *bqConfig
 	index       *queueIndex
 	baseAid     int
-	arenaList   []*arena
 	inMemArenas int
+	arenaList   []*arena
 }
 
 // newArenaManager returns a pointer to new arenaManager
@@ -58,6 +61,9 @@ func newArenaManager(dir string, conf *bqConfig, index *queueIndex) (
 
 // getArena returns arena for a given arena ID
 func (m *arenaManager) getArena(aid int) (*arena, error) {
+	m.Lock()
+	defer m.Unlock()
+
 	// ensure that arenaList is long enough
 	relAid := aid - m.baseAid
 	if relAid > len(m.arenaList) {
@@ -84,6 +90,43 @@ func (m *arenaManager) getArena(aid int) (*arena, error) {
 	}
 
 	return m.arenaList[relAid], nil
+}
+
+func (m *arenaManager) flush() error {
+	m.RLock()
+	defer m.RUnlock()
+
+	for _, arena := range m.arenaList {
+		if arena != nil && arena.dirty.load() == 1 {
+			if err := arena.Flush(syscall.MS_SYNC); err != nil {
+				return err
+			}
+
+			arena.dirty.store(0)
+		}
+	}
+
+	return nil
+}
+
+// close unmaps all the arenas managed by arenaManager
+func (m *arenaManager) close() error {
+	m.Lock()
+	defer m.Unlock()
+
+	var retErr error
+	for i := 0; i < len(m.arenaList); i++ {
+		aa := m.arenaList[i]
+		if aa == nil {
+			continue
+		}
+
+		if err := aa.Unmap(); err != nil {
+			retErr = err
+		}
+	}
+
+	return retErr
 }
 
 // ensureEnoughMem ensures that at least 1 new arena can be brought into memory
@@ -181,44 +224,4 @@ func (m *arenaManager) deleteArenaBackedFile(aid int) error {
 	}
 
 	return nil
-}
-
-func (m *arenaManager) flush() error {
-	for _, arena := range m.arenaList {
-		// arena could be nil when it is unloaded from memory to obey maxInMemArenas setting
-		// see ensureEnoughMem()
-		if arena != nil && arena.dirty {
-			if err := arena.Flush(syscall.MS_SYNC); err != nil {
-				return err
-			}
-			arena.dirty = false
-		}
-	}
-
-	if m.index.indexArena.dirty {
-		if err := m.index.flush(); err != nil {
-			return err
-		}
-		m.index.indexArena.dirty = false
-	}
-
-	return nil
-}
-
-// close unmaps all the arenas managed by arenaManager
-func (m *arenaManager) close() error {
-	var retErr error
-
-	for i := 0; i < len(m.arenaList); i++ {
-		aa := m.arenaList[i]
-		if aa == nil {
-			continue
-		}
-
-		if err := aa.Unmap(); err != nil {
-			retErr = err
-		}
-	}
-
-	return retErr
 }

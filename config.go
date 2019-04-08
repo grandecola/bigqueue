@@ -36,7 +36,7 @@ type bqConfig struct {
 	arenaSize      int
 	maxInMemArenas int
 	flushMutOps    int64
-	flushPeriod    time.Duration
+	flushPeriod    int64
 	clock          clockwork.Clock
 }
 
@@ -50,7 +50,7 @@ func newConfig() *bqConfig {
 		arenaSize:      cDefaultArenaSize,
 		maxInMemArenas: cMinMaxInMemArenas,
 		flushMutOps:    cDefaultMutOps,
-		flushPeriod:    cDefaultflushPeriod,
+		flushPeriod:    cDefaultflushPeriod.Nanoseconds(),
 		clock:          realClock,
 	}
 }
@@ -118,11 +118,13 @@ func SetPeriodicFlushDuration(flushPeriod time.Duration) Option {
 			return ErrMustBeGreaterThanZero
 		}
 
-		c.flushPeriod = flushPeriod
+		c.flushPeriod = flushPeriod.Nanoseconds()
 		return nil
 	}
 }
 
+// setClock returns an Option closure to set a custom clock.
+// Currently, this function is not exported and only used for unit testing.
 func setClock(clock clockwork.Clock) Option {
 	return func(c *bqConfig) error {
 		c.clock = clock

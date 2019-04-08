@@ -14,6 +14,64 @@ var (
 	ErrEmptyQueue = errors.New("queue is empty")
 )
 
+// Peek returns the head (slice of bytes) of the queue
+func (q *MmapQueue) Peek() ([]byte, error) {
+	br := &bytesReader{}
+	if err := q.peek(br); err != nil {
+		return nil, err
+	}
+
+	return br.b, nil
+}
+
+// PeekString returns the head (string) of the queue
+func (q *MmapQueue) PeekString() (string, error) {
+	sr := &stringReader{sb: &strings.Builder{}}
+	if err := q.peek(sr); err != nil {
+		return "", err
+	}
+
+	return sr.sb.String(), nil
+}
+
+// Dequeue removes an element from the queue
+func (q *MmapQueue) Dequeue() error {
+	complete := false
+	q.hLock.Lock()
+	defer func() {
+		if !complete {
+			q.hLock.Unlock()
+		}
+	}()
+
+	q.tLock.RLock()
+	emptyQueue := q.isEmpty()
+	q.tLock.RUnlock()
+	if emptyQueue {
+		return ErrEmptyQueue
+	}
+
+	// read index
+	aid, offset := q.index.getHead()
+
+	// read length
+	newAid, newOffset, length, err := q.readLength(aid, offset)
+	if err != nil {
+		return err
+	}
+	aid, offset = newAid, newOffset
+
+	// calculate the start point for next element
+	aid += (offset + length) / q.conf.arenaSize
+	offset = (offset + length) % q.conf.arenaSize
+	q.index.putHead(aid, offset)
+	q.mutOps.add(1)
+
+	q.hLock.Unlock()
+	complete = true
+	return q.flushPeriodic()
+}
+
 // reader knows how to read data from arena
 type reader interface {
 	// grow grows reader's capacity, if necessary, to guarantee space for
@@ -27,7 +85,7 @@ type reader interface {
 	readFrom(aa *arena, offset, index int) int
 }
 
-// bytesReader holds a slice of bytes to hold the data
+// bytesReader holds a slice of bytes to hold the data, read from arena
 type bytesReader struct {
 	b []byte
 }
@@ -67,55 +125,16 @@ func (sr *stringReader) readFrom(aa *arena, offset, index int) int {
 	return aa.ReadStringAt(sr.sb, int64(offset))
 }
 
-// Peek returns the head (slice of bytes) of the queue
-func (q *MmapQueue) Peek() ([]byte, error) {
-	br := &bytesReader{}
-	if err := q.peek(br); err != nil {
-		return nil, err
-	}
-
-	return br.b, nil
-}
-
-// PeekString returns the head (string) of the queue
-func (q *MmapQueue) PeekString() (string, error) {
-	sr := &stringReader{sb: &strings.Builder{}}
-	if err := q.peek(sr); err != nil {
-		return "", err
-	}
-
-	return sr.sb.String(), nil
-}
-
-// Dequeue removes an element from the queue
-func (q *MmapQueue) Dequeue() error {
-	if q.IsEmpty() {
-		return ErrEmptyQueue
-	}
-
-	// read index
-	aid, offset := q.index.getHead()
-
-	// read length
-	newAid, newOffset, length, err := q.readLength(aid, offset)
-	if err != nil {
-		return err
-	}
-	aid, offset = newAid, newOffset
-
-	// calculate the start point for next element
-	aid += (offset + length) / q.conf.arenaSize
-	offset = (offset + length) % q.conf.arenaSize
-	q.index.putHead(aid, offset)
-	q.mutOps++
-
-	return q.flushPeriodic()
-}
-
 // peek reads one element of the queue into given reader.
 // It takes care of reading the element that is spread acorss multiple arenas.
 func (q *MmapQueue) peek(r reader) error {
-	if q.IsEmpty() {
+	q.hLock.Lock()
+	defer q.hLock.Unlock()
+
+	q.tLock.RLock()
+	emptyQueue := q.isEmpty()
+	q.tLock.RUnlock()
+	if emptyQueue {
 		return ErrEmptyQueue
 	}
 

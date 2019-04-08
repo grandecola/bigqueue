@@ -2,7 +2,7 @@ package bigqueue
 
 import (
 	"errors"
-	"time"
+	"sync"
 )
 
 var (
@@ -14,23 +14,33 @@ var (
 // Queue provides an interface to big, fast and persistent queue
 type Queue interface {
 	IsEmpty() bool
-	Dequeue() error
 	Flush() error
 	Close() error
 
-	Peek() ([]byte, error)
 	Enqueue([]byte) error
-	PeekString() (string, error)
 	EnqueueString(string) error
+	Dequeue() error
+	Peek() ([]byte, error)
+	PeekString() (string, error)
 }
 
 // MmapQueue implements Queue interface
 type MmapQueue struct {
-	conf      *bqConfig
-	am        *arenaManager
-	index     *queueIndex
-	mutOps    int64
-	lastFlush time.Time
+	// The order of locks: hLock > tLock > am.Lock
+
+	conf  *bqConfig
+	index *queueIndex
+	am    *arenaManager
+
+	// using atomic to update these below
+	mutOps    *atomicInt64
+	lastFlush *atomicInt64
+
+	// protects head
+	hLock sync.RWMutex
+
+	// protects tail
+	tLock sync.RWMutex
 }
 
 // NewMmapQueue constructs a new persistent queue
@@ -81,45 +91,79 @@ func NewMmapQueue(dir string, opts ...Option) (Queue, error) {
 		conf:      conf,
 		am:        am,
 		index:     index,
-		lastFlush: conf.clock.Now(),
+		mutOps:    newAtomicInt64(0),
+		lastFlush: newAtomicInt64(conf.clock.Now().UnixNano()),
 	}, nil
 }
 
 // IsEmpty returns true when queue is empty
 func (q *MmapQueue) IsEmpty() bool {
-	headAid, headOffset := q.index.getHead()
-	tailAid, tailOffset := q.index.getTail()
-	return headAid == tailAid && headOffset == tailOffset
+	q.hLock.RLock()
+	defer q.hLock.RUnlock()
+
+	q.tLock.RLock()
+	defer q.tLock.RUnlock()
+
+	return q.isEmpty()
+}
+
+// Flush syncs the in memory content of bigqueue to disk
+// A read lock ensures that there is no writer which is what we want
+func (q *MmapQueue) Flush() error {
+	// we are locking arena manager first here which is fine because we
+	// unlock arena manager before proceeding to acquiring more locks
+	if err := q.am.flush(); err != nil {
+		return err
+	}
+
+	q.hLock.RLock()
+	defer q.hLock.RUnlock()
+
+	q.tLock.RLock()
+	defer q.tLock.RUnlock()
+
+	if err := q.index.flush(); err != nil {
+		return err
+	}
+
+	q.mutOps.store(0)
+	return nil
 }
 
 // Close will close index and arena manager
 func (q *MmapQueue) Close() error {
+	q.hLock.Lock()
+	defer q.hLock.Unlock()
+
+	q.tLock.Lock()
+	defer q.tLock.Unlock()
+
 	var retErr error
-	if err := q.index.close(); err != nil {
+	if err := q.am.close(); err != nil {
 		retErr = err
 	}
 
-	if err := q.am.close(); err != nil {
+	if err := q.index.close(); err != nil {
 		retErr = err
 	}
 
 	return retErr
 }
 
-// Flush syncs the in memory content of bigqueue to disk
-func (q *MmapQueue) Flush() error {
-	if err := q.am.flush(); err != nil {
-		return err
-	}
-
-	q.mutOps = 0
-	q.lastFlush = q.conf.clock.Now()
-	return nil
+// isEmpty is not thread safe and should be called only after acquiring necessary locks
+func (q *MmapQueue) isEmpty() bool {
+	headAid, headOffset := q.index.getHead()
+	tailAid, tailOffset := q.index.getTail()
+	return headAid == tailAid && headOffset == tailOffset
 }
 
+// flushPeriodic performs a periodic flush if need be
 func (q *MmapQueue) flushPeriodic() error {
-	enoughMutations := q.mutOps >= q.conf.flushMutOps
-	enoughTime := q.conf.clock.Since(q.lastFlush) >= q.conf.flushPeriod
+	mutOps := q.mutOps.load()
+	lastFlush := q.lastFlush.load()
+
+	enoughMutations := mutOps >= q.conf.flushMutOps
+	enoughTime := (q.conf.clock.Now().UnixNano() - lastFlush) >= q.conf.flushPeriod
 	if enoughMutations || enoughTime {
 		return q.Flush()
 	}

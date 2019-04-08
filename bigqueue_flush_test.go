@@ -50,33 +50,33 @@ func TestSetPeriodicFlushOps(t *testing.T) {
 	defer bq.Close()
 
 	setupFlushCountFile(bq, t)
-	checkDirtiness(bq, t, true, [3]bool{false, false, false})
+	checkDirtiness(bq, t, 1, [3]int64{0, 0, 0})
 	checkTimesCalled(bq, t, 0, [3]int{0, 0, 0})
 
 	msg := bytes.Repeat([]byte("a"), arenaSize)
 	if err := bq.Enqueue(msg); err != nil {
 		t.Fatalf("enqueue failed :: %v", err)
 	}
-	checkDirtiness(bq, t, true, [3]bool{true, true, false})
+	checkDirtiness(bq, t, 1, [3]int64{1, 1, 0})
 	checkTimesCalled(bq, t, 0, [3]int{0, 0, 0})
 
 	if err := bq.Enqueue(msg); err != nil {
 		t.Fatalf("enqueue failed :: %v", err)
 	}
-	checkDirtiness(bq, t, true, [3]bool{true, true, true})
+	checkDirtiness(bq, t, 1, [3]int64{1, 1, 1})
 	checkTimesCalled(bq, t, 0, [3]int{0, 0, 0})
 
 	if err := bq.Dequeue(); err != nil {
 		t.Fatalf("dequeue failed :: %v", err)
 	}
-	checkDirtiness(bq, t, true, [3]bool{true, true, true})
+	checkDirtiness(bq, t, 1, [3]int64{1, 1, 1})
 	checkTimesCalled(bq, t, 0, [3]int{0, 0, 0})
 	checkMutOps(bq, t, 3)
 
 	if err := bq.Dequeue(); err != nil {
 		t.Fatalf("dequeue failed :: %v", err)
 	}
-	checkDirtiness(bq, t, false, [3]bool{false, false, false})
+	checkDirtiness(bq, t, 0, [3]int64{0, 0, 0})
 	checkTimesCalled(bq, t, 1, [3]int{1, 1, 1})
 	checkMutOps(bq, t, 0)
 }
@@ -99,7 +99,7 @@ func TestSetPeriodicFlushDuration(t *testing.T) {
 	defer bq.Close()
 
 	setupFlushCountFile(bq, t)
-	checkDirtiness(bq, t, true, [3]bool{false, false, false})
+	checkDirtiness(bq, t, 1, [3]int64{0, 0, 0})
 	checkTimesCalled(bq, t, 0, [3]int{0, 0, 0})
 
 	msg := []byte("a")
@@ -108,7 +108,7 @@ func TestSetPeriodicFlushDuration(t *testing.T) {
 			t.Fatalf("enqueue failed :: %v", err)
 		}
 	}
-	checkDirtiness(bq, t, true, [3]bool{true, true, false})
+	checkDirtiness(bq, t, 1, [3]int64{1, 1, 0})
 	checkTimesCalled(bq, t, 0, [3]int{0, 0, 0})
 
 	// advance clock by the flush period
@@ -117,7 +117,7 @@ func TestSetPeriodicFlushDuration(t *testing.T) {
 	if err := bq.Enqueue(msg); err != nil {
 		t.Fatalf("enqueue failed :: %v", err)
 	}
-	checkDirtiness(bq, t, false, [3]bool{false, false, false})
+	checkDirtiness(bq, t, 0, [3]int64{0, 0, 0})
 	checkTimesCalled(bq, t, 1, [3]int{1, 1, 0})
 
 	// advance clock by half of the flush period
@@ -127,7 +127,7 @@ func TestSetPeriodicFlushDuration(t *testing.T) {
 			t.Fatalf("enqueue failed :: %v", err)
 		}
 	}
-	checkDirtiness(bq, t, true, [3]bool{false, true, true})
+	checkDirtiness(bq, t, 1, [3]int64{0, 1, 1})
 	checkTimesCalled(bq, t, 1, [3]int{1, 1, 0})
 
 	// advance clock by flush period
@@ -136,7 +136,7 @@ func TestSetPeriodicFlushDuration(t *testing.T) {
 	if err := bq.Enqueue(msg); err != nil {
 		t.Fatalf("enqueue failed :: %v", err)
 	}
-	checkDirtiness(bq, t, false, [3]bool{false, false, false})
+	checkDirtiness(bq, t, 0, [3]int64{0, 0, 0})
 	checkTimesCalled(bq, t, 2, [3]int{1, 2, 1})
 }
 
@@ -222,15 +222,15 @@ func setupFlushCountFile(q Queue, t *testing.T) {
 
 func checkMutOps(q Queue, t *testing.T, expected int64) {
 	bq := q.(*MmapQueue)
-	if bq.mutOps != expected {
+	if bq.mutOps.load() != expected {
 		t.Fatalf("expected mutOps %v, got %v", expected, bq.mutOps)
 	}
 }
 
 func checkLastFlushTime(q Queue, t *testing.T, expected time.Time) {
 	lastFlush := (q.(*MmapQueue)).lastFlush
-	if lastFlush != expected {
-		t.Fatalf("expected lastFlush %v, got %v", expected, lastFlush)
+	if lastFlush.load() != int64(expected.UnixNano()) {
+		t.Fatalf("expected lastFlush %v, got %v", expected.UnixNano(), lastFlush)
 	}
 }
 
@@ -260,10 +260,11 @@ func checkTimesCalled(q Queue, t *testing.T, indexTimesCalled int, timesCalled [
 }
 
 // expects first three arenas to be in memory
-func checkDirtiness(q Queue, t *testing.T, expectedIndex bool, expectedArenas [3]bool) {
+func checkDirtiness(q Queue, t *testing.T, expectedIndex int64, expectedArenas [3]int64) {
 	bq := q.(*MmapQueue)
-	if bq.index.indexArena.dirty != expectedIndex {
-		t.Fatalf("dirty flag for index expected %v, got %v", expectedIndex, bq.index.indexArena.dirty)
+	dirtyIndex := bq.index.indexArena.dirty.load()
+	if dirtyIndex != expectedIndex {
+		t.Fatalf("dirty flag for index expected %v, got %v", expectedIndex, dirtyIndex)
 	}
 
 	for i, expected := range expectedArenas {
@@ -272,8 +273,9 @@ func checkDirtiness(q Queue, t *testing.T, expectedIndex bool, expectedArenas [3
 			t.Fatalf("aid %v is nil, expected it to be in memory", i)
 		}
 
-		if arena.dirty != expected {
-			t.Fatalf("dirty flag for arena %v expected %v, got %v", i, expected, arena.dirty)
+		dirtyArena := arena.dirty.load()
+		if dirtyArena != expected {
+			t.Fatalf("dirty flag for arena %v expected %v, got %v", i, expected, dirtyArena)
 		}
 	}
 }

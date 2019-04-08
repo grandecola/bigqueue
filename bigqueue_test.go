@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -846,4 +847,120 @@ func TestReadWriteString(t *testing.T) {
 	if err := bq.Dequeue(); err != nil {
 		t.Fatalf("dequeue failed :: %v", err)
 	}
+}
+
+func TestParallel(t *testing.T) {
+	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	bq, err := NewMmapQueue(testDir, SetArenaSize(8*1024))
+	if err != nil {
+		t.Fatalf("unable to get BigQueue: %v", err)
+	}
+	defer func() {
+		if err := bq.Close(); err != nil {
+			t.Fatalf("error in closing bigqueue :: %v", err)
+		}
+	}()
+
+	// we have 7 API functions that we will call in parallel
+	// and let the race detector catch if there is a race condition
+	N := 1000
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	isEmptyFunc := func() {
+		defer wg.Done()
+		var emptyCount int64
+		var nonEmptyCount int64
+		for i := 0; i < N; i++ {
+			if bq.IsEmpty() {
+				emptyCount++
+			} else {
+				nonEmptyCount++
+			}
+		}
+	}
+
+	flushFunc := func() {
+		defer wg.Done()
+		for i := 0; i < N; i++ {
+			if err := bq.Flush(); err != nil {
+				t.Fatalf("error while Flush :: %v", err)
+			}
+		}
+	}
+
+	enqueueFunc := func() {
+		defer wg.Done()
+		for i := 0; i < N; i++ {
+			if err := bq.Enqueue([]byte("elem")); err != nil {
+				t.Fatalf("error while Enqueue :: %v", err)
+			}
+		}
+	}
+
+	enqueueStringFunc := func() {
+		defer wg.Done()
+		for i := 0; i < N; i++ {
+			if err := bq.EnqueueString("elem"); err != nil {
+				t.Fatalf("error while Enqueue :: %v", err)
+			}
+		}
+	}
+
+	dequeueFunc := func() {
+		defer wg.Done()
+		for i := 0; i < N; i++ {
+			if err := bq.Dequeue(); err == ErrEmptyQueue {
+				continue
+			} else if err != nil {
+				t.Fatalf("error while Dequeue :: %v", err)
+			}
+		}
+	}
+
+	peekFunc := func() {
+		defer wg.Done()
+		for i := 0; i < N; i++ {
+			if elem, err := bq.Peek(); err == ErrEmptyQueue {
+				continue
+			} else if err != nil {
+				t.Fatalf("error while Peek :: %v", err)
+			} else if !bytes.Equal(elem, []byte("elem")) {
+				t.Fatalf("invalid value, exp: elem, actual: %v", string(elem))
+			}
+		}
+	}
+
+	peekStringFunc := func() {
+		defer wg.Done()
+		for i := 0; i < N; i++ {
+			if elem, err := bq.PeekString(); err == ErrEmptyQueue {
+				continue
+			} else if err != nil {
+				t.Fatalf("error while PeekString :: %v", err)
+			} else if elem != "elem" {
+				t.Fatalf("invalid value, exp: elem, actual: %v", string(elem))
+			}
+		}
+	}
+
+	wg.Add(14)
+	go isEmptyFunc()
+	go isEmptyFunc()
+	go flushFunc()
+	go flushFunc()
+	go enqueueFunc()
+	go enqueueFunc()
+	go enqueueStringFunc()
+	go enqueueStringFunc()
+	go dequeueFunc()
+	go dequeueFunc()
+	go peekFunc()
+	go peekFunc()
+	go peekStringFunc()
+	go peekStringFunc()
+	wg.Wait()
 }

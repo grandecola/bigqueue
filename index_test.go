@@ -45,12 +45,17 @@ func TestIndex(t *testing.T) {
 	assert.Equal(t, 0, aid)
 	assert.Equal(t, 0, offset)
 
+	assert.Equal(t, qi.indexArena.dirty.load(), int64(0))
 	qi.putHead(0, 8)
+	assert.Equal(t, qi.indexArena.dirty.load(), int64(1))
+
 	aid, offset = qi.getHead()
 	assert.Equal(t, 0, aid)
 	assert.Equal(t, 8, offset)
 
 	qi.putHead(7, 98)
+	assert.Equal(t, qi.indexArena.dirty.load(), int64(1))
+
 	aid, offset = qi.getHead()
 	assert.Equal(t, 7, aid)
 	assert.Equal(t, 98, offset)
@@ -59,18 +64,33 @@ func TestIndex(t *testing.T) {
 	assert.Equal(t, 0, aid)
 	assert.Equal(t, 0, offset)
 
+	if errFlush := qi.flush(); errFlush != nil {
+		t.Fatalf("error in calling flush: %v", errFlush)
+	}
+	assert.Equal(t, qi.indexArena.dirty.load(), int64(0))
+
 	qi.putTail(9, 127*1024*1024)
+	assert.Equal(t, qi.indexArena.dirty.load(), int64(1))
+
 	aid, offset = qi.getTail()
 	assert.Equal(t, 9, aid)
 	assert.Equal(t, 127*1024*1024, offset)
 
+	if errFlush := qi.flush(); errFlush != nil {
+		t.Fatalf("error in calling flush: %v", errFlush)
+	}
+	assert.Equal(t, qi.indexArena.dirty.load(), int64(0))
+
 	arenaSize := 8 * 1024 * 1024
 	qi.putArenaSize(arenaSize)
 	assert.Equal(t, qi.getArenaSize(), arenaSize)
+	assert.Equal(t, qi.indexArena.dirty.load(), int64(1))
 
 	if errFlush := qi.flush(); errFlush != nil {
 		t.Fatalf("error in calling flush: %v", errFlush)
 	}
+	assert.Equal(t, qi.indexArena.dirty.load(), int64(0))
+
 	indexFile := path.Join(testDir, cIndexFileName)
 	fd, err := os.Open(indexFile)
 	if err != nil {
