@@ -14,9 +14,6 @@ const (
 // arena is an abstraction for a memory mapped file of a given size
 type arena struct {
 	mmap.File
-
-	// TODO: this flag is being touched from a lot of places
-	// we need to encapsulate its usage better
 	dirty *atomicInt64
 }
 

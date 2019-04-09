@@ -46,8 +46,7 @@ memory is above and beyond the memory used in buffers for copying data.
 
 Bigqueue allows to set periodic flush based on either elapsed time or number
 of mutate (enqueue/dequeue) operations. Flush syncs the in memory changes of all
-memory mapped files with disk. *This is a best effort flush*. Elapsed time and
-number of mutate operations are only checked upon an enqueue/dequeue.
+memory mapped files with disk. *This is a best effort flush*.
 
 This is how you can set these options -
 ```go

@@ -54,13 +54,8 @@ func (sw *stringWriter) writeTo(aa *arena, offset, index int) int {
 // fit into one arena. This function takes care of spreading the data across
 // multiple arenas when necessary.
 func (q *MmapQueue) enqueue(w writer) error {
-	complete := true
 	q.tLock.Lock()
-	defer func() {
-		if !complete {
-			q.tLock.Unlock()
-		}
-	}()
+	defer q.tLock.Unlock()
 
 	aid, offset := q.index.getTail()
 	newAid, newOffset, err := q.writeLength(aid, offset, uint64(w.len()))
@@ -76,11 +71,14 @@ func (q *MmapQueue) enqueue(w writer) error {
 	}
 	// update tail
 	q.index.putTail(aid, offset)
-	q.mutOps.add(1)
 
-	complete = true
-	q.tLock.Unlock()
-	return q.flushPeriodic()
+	// increase number of mutation operations
+	q.mutOps.add(1)
+	if q.conf.flushMutOps != 0 && q.mutOps.load() >= q.conf.flushMutOps && len(q.flushChan) == 0 {
+		q.flushChan <- struct{}{}
+	}
+
+	return nil
 }
 
 // writeLength writes the length into tail arena. Note that length is

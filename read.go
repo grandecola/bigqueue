@@ -36,13 +36,8 @@ func (q *MmapQueue) PeekString() (string, error) {
 
 // Dequeue removes an element from the queue
 func (q *MmapQueue) Dequeue() error {
-	complete := false
 	q.hLock.Lock()
-	defer func() {
-		if !complete {
-			q.hLock.Unlock()
-		}
-	}()
+	defer q.hLock.Unlock()
 
 	q.tLock.RLock()
 	emptyQueue := q.isEmpty()
@@ -65,11 +60,14 @@ func (q *MmapQueue) Dequeue() error {
 	aid += (offset + length) / q.conf.arenaSize
 	offset = (offset + length) % q.conf.arenaSize
 	q.index.putHead(aid, offset)
-	q.mutOps.add(1)
 
-	q.hLock.Unlock()
-	complete = true
-	return q.flushPeriodic()
+	// increase number of mutation operations
+	q.mutOps.add(1)
+	if q.conf.flushMutOps != 0 && q.mutOps.load() >= q.conf.flushMutOps && len(q.flushChan) == 0 {
+		q.flushChan <- struct{}{}
+	}
+
+	return nil
 }
 
 // reader knows how to read data from arena

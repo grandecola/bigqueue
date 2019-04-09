@@ -4,8 +4,6 @@ import (
 	"errors"
 	"os"
 	"time"
-
-	"github.com/jonboulle/clockwork"
 )
 
 const (
@@ -13,10 +11,6 @@ const (
 
 	// tail, head and a buffer arena, hence 3
 	cMinMaxInMemArenas = 3
-
-	// values chosen arbitrarily
-	cDefaultMutOps      = 1000
-	cDefaultflushPeriod = time.Minute
 )
 
 var (
@@ -26,9 +20,6 @@ var (
 	ErrTooFewInMemArenas = errors.New("too few in memory arenas")
 	// ErrMustBeGreaterThanZero is returned when a config value has non-positive value
 	ErrMustBeGreaterThanZero = errors.New("must be greater than zero")
-	// singleton instance of real clock.
-	// TODO: not needed once https://github.com/jonboulle/clockwork/pull/14 is merged
-	realClock = clockwork.NewRealClock()
 )
 
 // bqConfig stores all the configuration related to bigqueue
@@ -37,7 +28,6 @@ type bqConfig struct {
 	maxInMemArenas int
 	flushMutOps    int64
 	flushPeriod    int64
-	clock          clockwork.Clock
 }
 
 // Option is function type that takes a bqConfig object
@@ -49,9 +39,6 @@ func newConfig() *bqConfig {
 	return &bqConfig{
 		arenaSize:      cDefaultArenaSize,
 		maxInMemArenas: cMinMaxInMemArenas,
-		flushMutOps:    cDefaultMutOps,
-		flushPeriod:    cDefaultflushPeriod.Nanoseconds(),
-		clock:          realClock,
 	}
 }
 
@@ -88,9 +75,7 @@ func SetMaxInMemArenas(maxInMemArenas int) Option {
 
 // SetPeriodicFlushOps returns an Option that sets the number of
 // mutate operations (enqueue/dequeue) after which the queue's in-memory
-// changes will be flushed to disk. This is a best effort flush and number
-// of mutate operations is checked upon an enqueue/dequeue.
-//
+// changes will be flushed to disk. This is a best effort flush.
 // For durability this value should be low.
 // For performance this value should be high.
 func SetPeriodicFlushOps(flushMutOps int64) Option {
@@ -106,28 +91,16 @@ func SetPeriodicFlushOps(flushMutOps int64) Option {
 
 // SetPeriodicFlushDuration returns an Option that sets a periodic
 // flush every given duration after which the queue's in-memory changes
-// will be flushed to disk. This is a best effort flush and elapsed time is
-// checked upon an enqueue/dequeue only.
-//
+// will be flushed to disk. This is a best effort flush.
 // For durability this value should be low.
 // For performance this value should be high.
 func SetPeriodicFlushDuration(flushPeriod time.Duration) Option {
-	// TODO: in future we should do a timely flush from a background scheduled goroutine
 	return func(c *bqConfig) error {
 		if flushPeriod < 1 {
 			return ErrMustBeGreaterThanZero
 		}
 
 		c.flushPeriod = flushPeriod.Nanoseconds()
-		return nil
-	}
-}
-
-// setClock returns an Option closure to set a custom clock.
-// Currently, this function is not exported and only used for unit testing.
-func setClock(clock clockwork.Clock) Option {
-	return func(c *bqConfig) error {
-		c.clock = clock
 		return nil
 	}
 }
