@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 func checkInMemArenaInvariant(t *testing.T, bq Queue) {
@@ -856,7 +857,8 @@ func TestParallel(t *testing.T) {
 	createTestDir(t, testDir)
 	defer deleteTestDir(t, testDir)
 
-	bq, err := NewMmapQueue(testDir, SetArenaSize(8*1024))
+	bq, err := NewMmapQueue(testDir, SetArenaSize(8*1024),
+		SetPeriodicFlushDuration(time.Millisecond*10), SetPeriodicFlushOps(10))
 	if err != nil {
 		t.Fatalf("unable to get BigQueue: %v", err)
 	}
