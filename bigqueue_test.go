@@ -11,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 func checkInMemArenaInvariant(t *testing.T, bq Queue) {
@@ -967,4 +969,51 @@ func TestParallel(t *testing.T) {
 	go peekStringFunc()
 	go peekStringFunc()
 	wg.Wait()
+}
+
+// Test proposed by @nanjj
+func TestBigQueueConcurrency(t *testing.T) {
+	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	bq, err := NewMmapQueue(testDir, SetArenaSize(8*1024))
+	if err != nil {
+		t.Fatalf("unable to get BigQueue: %v", err)
+	}
+	defer func() {
+		if err := bq.Close(); err != nil {
+			t.Fatalf("error in closing bigqueue :: %v", err)
+		}
+	}()
+
+	msgs := []string{}
+	var g errgroup.Group
+	for i := 0; i < 10; i++ {
+		i := i
+		g.Go(func() error {
+			return bq.Enqueue([]byte(fmt.Sprintf("message%02d", i)))
+		})
+	}
+	if err := g.Wait(); err != nil {
+		t.Fatal(err)
+	}
+
+	for !bq.IsEmpty() {
+		b, err := bq.Peek()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = bq.Dequeue()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		msgs = append(msgs, string(b))
+	}
+
+	if len(msgs) != 10 {
+		t.Fatal(len(msgs), msgs)
+	}
 }
