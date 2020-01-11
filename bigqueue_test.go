@@ -2,20 +2,40 @@ package bigqueue
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
-func checkInMemArenaInvariant(t *testing.T, bq Queue) {
-	q := bq.(*MmapQueue)
-	if q.am.inMemArenas > q.conf.maxInMemArenas {
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
+func checkInMemArenaInvariant(t *testing.T, bq *MmapQueue) {
+	if bq.am.inMemArenas > bq.conf.maxInMemArenas {
 		t.Fatalf("# of in memory arenas should not be more than %v, actual: %v",
-			q.conf.maxInMemArenas, q.am.inMemArenas)
+			bq.conf.maxInMemArenas, bq.am.inMemArenas)
+	}
+}
+
+func createTestDir(t *testing.T, testDir string) {
+	if _, err := os.Stat(testDir); os.IsNotExist(err) {
+		if err := os.Mkdir(testDir, cFilePerm); err != nil {
+			t.Fatalf("unable to create test dir: %v", err)
+		}
+	}
+}
+
+func deleteTestDir(t *testing.T, testDir string) {
+	if err := os.RemoveAll(testDir); err != nil {
+		t.Fatalf("unable to delete test dir: %v", err)
 	}
 }
 
@@ -47,7 +67,7 @@ func TestIsEmpty(t *testing.T) {
 		t.Fatalf("IsEmpty should return false after enqueue")
 	}
 
-	if err := bq.Dequeue(); err != nil {
+	if _, err := bq.Dequeue(); err != nil {
 		t.Fatalf("unable to dequeue message :: %v", err)
 	}
 
@@ -56,7 +76,7 @@ func TestIsEmpty(t *testing.T) {
 	}
 }
 
-func TestPeek(t *testing.T) {
+func TestDequeue(t *testing.T) {
 	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
 	createTestDir(t, testDir)
 	defer deleteTestDir(t, testDir)
@@ -71,12 +91,8 @@ func TestPeek(t *testing.T) {
 		}
 	}()
 
-	if msg, err := bq.Peek(); err != ErrEmptyQueue || msg != nil {
-		t.Fatalf("peek should return empty queue error, returned: %v", err)
-	}
-
-	if err := bq.Dequeue(); err != ErrEmptyQueue {
-		t.Fatalf("dequeue should return empty queue error, returned: %v", err)
+	if msg, err := bq.Dequeue(); err != ErrEmptyQueue || msg != nil {
+		t.Fatalf("Dequeue should return empty queue error, returned: %v", err)
 	}
 
 	msg := []byte("abcdefghij")
@@ -84,8 +100,8 @@ func TestPeek(t *testing.T) {
 		t.Fatalf("enqueue failed :: %v", err)
 	}
 
-	if headMsg, err := bq.Peek(); err != nil {
-		t.Fatalf("peek failed :: %v", err)
+	if headMsg, err := bq.Dequeue(); err != nil {
+		t.Fatalf("Dequeue failed :: %v", err)
 	} else if !bytes.Equal(msg, headMsg) {
 		t.Fatalf("messages don't match :: expected %s, actual: %s", string(msg), string(headMsg))
 	}
@@ -115,14 +131,10 @@ func TestEnqueueSmallMessage(t *testing.T) {
 		t.Fatalf("BigQueue should not be empty")
 	}
 
-	if poppedMsg, err := bq.Peek(); err != nil {
-		t.Fatalf("unable to peek :: %v", err)
+	if poppedMsg, err := bq.Dequeue(); err != nil {
+		t.Fatalf("unable to dequeue :: %v", err)
 	} else if !bytes.Equal(msg, poppedMsg) {
 		t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
-	}
-
-	if err := bq.Dequeue(); err != nil {
-		t.Fatalf("unable to dequeue :: %v", err)
 	}
 }
 
@@ -150,14 +162,10 @@ func TestEnqueueLargeMessage(t *testing.T) {
 		t.Fatalf("enqueue failed :: %v", err)
 	}
 
-	if deQueuedMsg, err := bq.Peek(); err != nil {
-		t.Fatalf("peek failed :: %v", err)
+	if deQueuedMsg, err := bq.Dequeue(); err != nil {
+		t.Fatalf("Dequeue failed :: %v", err)
 	} else if !bytes.Equal(deQueuedMsg, msg) {
 		t.Fatalf("dequeued and enqueued messages are not equal")
-	}
-
-	if err := bq.Dequeue(); err != nil {
-		t.Fatalf("dequeue failed :: %v", err)
 	}
 
 	if !bq.IsEmpty() {
@@ -198,22 +206,16 @@ func TestEnqueueOverlapLength(t *testing.T) {
 		t.Fatalf("enqueue failed :: %v", err)
 	}
 
-	if dequeueMsg, err := bq.Peek(); err != nil {
-		t.Fatalf("peek failed :: %v", err)
+	if dequeueMsg, err := bq.Dequeue(); err != nil {
+		t.Fatalf("Dequeue failed :: %v", err)
 	} else if !bytes.Equal(dequeueMsg, msg1) {
 		t.Fatalf("dequeued and enqeued messages are not equal")
 	}
-	if err := bq.Dequeue(); err != nil {
-		t.Fatalf("dequeue failed :: %v", err)
-	}
 
-	if dequeueMsg, err := bq.Peek(); err != nil {
-		t.Fatalf("peek failed :: %v", err)
+	if dequeueMsg, err := bq.Dequeue(); err != nil {
+		t.Fatalf("Dequeue failed :: %v", err)
 	} else if !bytes.Equal(dequeueMsg, msg2) {
 		t.Fatalf("dequeued and enqeued messages are not equal")
-	}
-	if err := bq.Dequeue(); err != nil {
-		t.Fatalf("dequeue failed :: %v", err)
 	}
 
 	if !bq.IsEmpty() {
@@ -253,18 +255,15 @@ func TestEnqueueLargeNumberOfMessages(t *testing.T) {
 			}
 		}
 		if err := bq.Enqueue(msg); err != nil {
-			t.Fatalf("uanble to enqueue message :: %v", err)
+			t.Fatalf("unable to enqueue message :: %v", err)
 		}
 	}
 
 	for i := 0; i < numMessages; i++ {
-		if msg, err := bq.Peek(); err != nil {
-			t.Fatalf("uanble to peek message :: %v", err)
+		if msg, err := bq.Dequeue(); err != nil {
+			t.Fatalf("unable to dequeue message :: %v", err)
 		} else if len(msg) != lengths[i] {
 			t.Fatalf("enqueued and dequeued lengths don't match for msg no %d", i)
-		}
-		if err := bq.Dequeue(); err != nil {
-			t.Fatalf("uanble to dequeue message :: %v", err)
 		}
 	}
 
@@ -297,13 +296,10 @@ func TestEnqueueZeroLengthMessage(t *testing.T) {
 		t.Fatalf("IsEmpty should return false if empty message is present in queue")
 	}
 
-	if deQueuedMsg, err := bq.Peek(); err != nil {
-		t.Fatalf("unable to peek empty message")
+	if deQueuedMsg, err := bq.Dequeue(); err != nil {
+		t.Fatalf("unable to dequeue empty message")
 	} else if !bytes.Equal(deQueuedMsg, emptyMsg) {
 		t.Fatalf("dequeued and enqueued messages are not equal")
-	}
-	if err := bq.Dequeue(); err != nil {
-		t.Fatalf("unable to dequeue empty message")
 	}
 
 	if !bq.IsEmpty() {
@@ -337,11 +333,10 @@ func TestEnqueueWhenMessageLengthFits(t *testing.T) {
 		t.Fatalf("unable to enqueue msg2: %s", err)
 	}
 
-	if err := bq.Dequeue(); err != nil {
+	if _, err := bq.Dequeue(); err != nil {
 		t.Fatalf("unable to dequeue msg1: %s", err)
 	}
-
-	if err := bq.Dequeue(); err != nil {
+	if _, err := bq.Dequeue(); err != nil {
 		t.Fatalf("unable to dequeue msg2: %s", err)
 	}
 }
@@ -380,14 +375,10 @@ func TestReadWriteCornerCases(t *testing.T) {
 			bq = bqTemp
 		}
 
-		if poppedMsg, err := bq.Peek(); err != nil {
-			t.Fatalf("unable to peek :: %v", err)
+		if poppedMsg, err := bq.Dequeue(); err != nil {
+			t.Fatalf("unable to dequeue :: %v", err)
 		} else if !bytes.Equal(msg, poppedMsg) {
 			t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
-		}
-
-		if err := bq.Dequeue(); err != nil {
-			t.Fatalf("unable to dequeue :: %v", err)
 		}
 
 		if !bq.IsEmpty() {
@@ -424,20 +415,10 @@ func TestArenaSize(t *testing.T) {
 		t.Fatalf("BigQueue should not be empty")
 	}
 
-	if poppedMsg, err := bq.Peek(); err != nil {
-		t.Fatalf("unable to peek :: %v", err)
+	if poppedMsg, err := bq.Dequeue(); err != nil {
+		t.Fatalf("unable to dequeue :: %v", err)
 	} else if !bytes.Equal(msg, poppedMsg) {
 		t.Fatalf("unequal length, eq: %s, dq: %s", string(msg), string(poppedMsg))
-	}
-
-	if poppedMsg, err := bq.Peek(); err != nil {
-		t.Fatalf("unable to peek :: %v", err)
-	} else if !bytes.Equal(msg, poppedMsg) {
-		t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
-	}
-
-	if err := bq.Dequeue(); err != nil {
-		t.Fatalf("unable to dequeue :: %v", err)
 	}
 }
 
@@ -469,20 +450,10 @@ func TestArenaSize2(t *testing.T) {
 	}
 
 	for i := 0; i < arenaSize/len(msg)*4; i++ {
-		if poppedMsg, err := bq.Peek(); err != nil {
-			t.Fatalf("unable to peek :: %v", err)
+		if poppedMsg, err := bq.Dequeue(); err != nil {
+			t.Fatalf("unable to dequeue :: %v", err)
 		} else if !bytes.Equal(msg, poppedMsg) {
 			t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
-		}
-
-		if poppedMsg, err := bq.Peek(); err != nil {
-			t.Fatalf("unable to peek :: %v", err)
-		} else if !bytes.Equal(msg, poppedMsg) {
-			t.Fatalf("unequal length, eq: %s, dq: %s", string(msg), string(poppedMsg))
-		}
-
-		if err := bq.Dequeue(); err != nil {
-			t.Fatalf("unable to dequeue :: %v", err)
 		}
 	}
 }
@@ -515,20 +486,10 @@ func TestArenaSize3(t *testing.T) {
 	}
 
 	for i := 0; i < arenaSize/len(msg)*4; i++ {
-		if poppedMsg, err := bq.Peek(); err != nil {
-			t.Fatalf("unable to peek :: %v", err)
-		} else if !bytes.Equal(msg, poppedMsg) {
-			t.Fatalf("unequal length, eq: %s, dq: %s", string(msg), string(poppedMsg))
-		}
-
-		if poppedMsg, err := bq.Peek(); err != nil {
-			t.Fatalf("unable to peek :: %v", err)
-		} else if !bytes.Equal(msg, poppedMsg) {
-			t.Fatalf("unequal length, eq: %s, dq: %s", string(msg), string(poppedMsg))
-		}
-
-		if err := bq.Dequeue(); err != nil {
+		if poppedMsg, err := bq.Dequeue(); err != nil {
 			t.Fatalf("unable to dequeue :: %v", err)
+		} else if !bytes.Equal(msg, poppedMsg) {
+			t.Fatalf("unequal length, eq: %s, dq: %s", string(msg), string(poppedMsg))
 		}
 	}
 }
@@ -596,8 +557,8 @@ func TestArenaSizeNotMultiple(t *testing.T) {
 		}
 	}()
 
-	if poppedMsg, err := bq.Peek(); err != nil {
-		t.Fatalf("unable to peek :: %v", err)
+	if poppedMsg, err := bq.Dequeue(); err != nil {
+		t.Fatalf("unable to dequeue :: %v", err)
 	} else if !bytes.Equal(msg, poppedMsg) {
 		t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
 	}
@@ -605,7 +566,7 @@ func TestArenaSizeNotMultiple(t *testing.T) {
 
 func TestNewBigqueueNoFolder(t *testing.T) {
 	bq, err := NewMmapQueue("1/2/3/4/5/6")
-	if !os.IsNotExist(err) || bq != nil {
+	if !os.IsNotExist(errors.Unwrap(errors.Unwrap(err))) || bq != nil {
 		t.Fatalf("expected file not exists error, returned: %v", err)
 	}
 }
@@ -677,7 +638,7 @@ func runTestLimitedMemory(t *testing.T, messageSize, arenaSize, maxInMemArenas i
 	}
 
 	for i := 0; i < 5; i++ {
-		if err := bq.Dequeue(); err != nil {
+		if _, err := bq.Dequeue(); err != nil {
 			t.Fatalf("dequeue failed :: %v", err)
 		}
 
@@ -707,22 +668,10 @@ func runTestLimitedMemory(t *testing.T, messageSize, arenaSize, maxInMemArenas i
 	}
 
 	for i := 0; i < 7; i++ {
-		if poppedMsg, err := bq.Peek(); err != nil {
-			t.Fatalf("unable to peek :: %v", err)
+		if poppedMsg, err := bq.Dequeue(); err != nil {
+			t.Fatalf("unable to dequeue :: %v", err)
 		} else if !bytes.Equal(msg, poppedMsg) {
 			t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
-		}
-		checkInMemArenaInvariant(t, bq)
-
-		if poppedMsg, err := bq.Peek(); err != nil {
-			t.Fatalf("unable to peek :: %v", err)
-		} else if !bytes.Equal(msg, poppedMsg) {
-			t.Fatalf("unequal length, eq: %s, dq: %s", string(msg), string(poppedMsg))
-		}
-		checkInMemArenaInvariant(t, bq)
-
-		if err := bq.Dequeue(); err != nil {
-			t.Fatalf("unable to dequeue :: %v", err)
 		}
 		checkInMemArenaInvariant(t, bq)
 
@@ -733,7 +682,7 @@ func runTestLimitedMemory(t *testing.T, messageSize, arenaSize, maxInMemArenas i
 	}
 
 	for i := 0; i < 11; i++ {
-		if err := bq.Dequeue(); err != nil {
+		if _, err := bq.Dequeue(); err != nil {
 			t.Fatalf("dequeue failed :: %v", err)
 		}
 
@@ -796,14 +745,10 @@ func TestReadWriteString(t *testing.T) {
 		t.Fatalf("BigQueue should not be empty")
 	}
 
-	if poppedMsg, err := bq.PeekString(); err != nil {
-		t.Fatalf("unable to peek :: %v", err)
+	if poppedMsg, err := bq.DequeueString(); err != nil {
+		t.Fatalf("unable to dequeue :: %v", err)
 	} else if msg != poppedMsg {
 		t.Fatalf("unequal messages, eq: %s, dq: %s", msg, poppedMsg)
-	}
-
-	if err := bq.Dequeue(); err != nil {
-		t.Fatalf("dequeue failed :: %v", err)
 	}
 
 	if err := bq.Close(); err != nil {
@@ -821,8 +766,8 @@ func TestReadWriteString(t *testing.T) {
 		t.Fatalf("enqueue failed :: %v", err)
 	}
 
-	if poppedMsg, err := bq.PeekString(); err != nil {
-		t.Fatalf("unable to peek :: %v", err)
+	if poppedMsg, err := bq.DequeueString(); err != nil {
+		t.Fatalf("unable to dequeue :: %v", err)
 	} else if "" != poppedMsg {
 		t.Fatalf("unequal messages, eq: <>, dq: %s", poppedMsg)
 	}
@@ -833,17 +778,220 @@ func TestReadWriteString(t *testing.T) {
 		t.Fatalf("enqueue failed :: %v", err)
 	}
 
-	if err := bq.Dequeue(); err != nil {
-		t.Fatalf("dequeue failed :: %v", err)
-	}
-
-	if poppedMsg, err := bq.PeekString(); err != nil {
-		t.Fatalf("unable to peek :: %v", err)
+	if poppedMsg, err := bq.DequeueString(); err != nil {
+		t.Fatalf("unable to dequeue :: %v", err)
 	} else if smallStr != poppedMsg {
 		t.Fatalf("unequal messages, eq: <>, dq: %s", poppedMsg)
 	}
+}
 
-	if err := bq.Dequeue(); err != nil {
-		t.Fatalf("dequeue failed :: %v", err)
+func TestConsumerSmallMessage(t *testing.T) {
+	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	bq, err := NewMmapQueue(testDir)
+	if err != nil {
+		t.Fatalf("unable to get BigQueue: %v", err)
+	}
+	defer func() {
+		if err := bq.Close(); err != nil {
+			t.Fatalf("error in closing bigqueue :: %v", err)
+		}
+	}()
+
+	msg := []byte("test message")
+	if err := bq.Enqueue(msg); err != nil {
+		t.Fatalf("enqueue failed :: %v", err)
+	}
+
+	if bq.IsEmpty() {
+		t.Fatalf("BigQueue should not be empty")
+	}
+
+	// enqueue message using default consumer
+	if poppedMsg, err := bq.Dequeue(); err != nil {
+		t.Fatalf("unable to dequeue :: %v", err)
+	} else if !bytes.Equal(msg, poppedMsg) {
+		t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
+	}
+
+	c, err := bq.NewConsumer("consumer")
+	if err != nil {
+		t.Fatalf("error in creating a consumer :: %v", err)
+	}
+
+	if c.IsEmpty() {
+		t.Fatalf("BigQueue should not be empty for consumer")
+	}
+
+	if poppedMsg, err := c.Dequeue(); err != nil {
+		t.Fatalf("unable to dequeue from consumer :: %v", err)
+	} else if !bytes.Equal(msg, poppedMsg) {
+		t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
+	}
+}
+
+func TestConsumerReadWriteCornerCases(t *testing.T) {
+	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	arenaSize := 8 * 1024
+	bq, err := NewMmapQueue(testDir, SetArenaSize(arenaSize))
+	if err != nil {
+		t.Fatalf("unable to get BigQueue: %v", err)
+	}
+
+	for i := 1; i < 10; i++ {
+		msgLength := i*arenaSize/2 - 8
+		if i == 5 {
+			msgLength -= 8
+		}
+		msg := bytes.Repeat([]byte("a"), msgLength)
+		if err := bq.Enqueue(msg); err != nil {
+			t.Fatalf("enqueue failed :: %v", err)
+		}
+
+		if bq.IsEmpty() {
+			t.Fatalf("BigQueue should not be empty")
+		}
+
+		if err := bq.Close(); err != nil {
+			t.Fatalf("error in closing bigqueue :: %v", err)
+		}
+		if bqTemp, err := NewMmapQueue(testDir, SetArenaSize(arenaSize)); err != nil {
+			t.Fatalf("unable to get BigQueue: %v", err)
+		} else {
+			bq = bqTemp
+		}
+
+		if poppedMsg, err := bq.Dequeue(); err != nil {
+			t.Fatalf("unable to dequeue :: %v", err)
+		} else if !bytes.Equal(msg, poppedMsg) {
+			t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
+		}
+
+		if !bq.IsEmpty() {
+			t.Fatalf("BigQueue should be empty")
+		}
+
+		cur, err := bq.NewConsumer("consumer" + strconv.FormatInt(int64(i), 10))
+		if err != nil {
+			t.Fatalf("error in creating a consumer :: %v", err)
+		}
+
+		if cur.IsEmpty() {
+			t.Fatalf("BigQueue should not be empty for consumer")
+		}
+
+		for j := 1; j <= i-1; j++ {
+			if _, err := cur.Dequeue(); err != nil {
+				t.Fatalf("unable to dequeue from consumer :: %v", err)
+			}
+		}
+
+		for j := 1; j <= i; j++ {
+			c, err := bq.NewConsumer("consumer" + strconv.FormatInt(int64(j), 10))
+			if err != nil {
+				t.Fatalf("error in creating a consumer :: %v", err)
+			}
+
+			if poppedMsg, err := c.DequeueString(); err != nil {
+				t.Fatalf("unable to dequeue from consumer :: %v", err)
+			} else if string(msg) != poppedMsg {
+				t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
+			}
+
+			if !c.IsEmpty() {
+				t.Fatalf("BigQueue should be empty")
+			}
+		}
+	}
+
+	if err := bq.Close(); err != nil {
+		t.Fatalf("error in closing bigqueue :: %v", err)
+	}
+}
+
+func TestManyConsumers(t *testing.T) {
+	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	arenaSize := 8 * 1024
+	bq, err := NewMmapQueue(testDir, SetArenaSize(arenaSize))
+	if err != nil {
+		t.Fatalf("unable to get BigQueue: %v", err)
+	}
+
+	for i := 0; i < 200; i++ {
+		_, err := bq.NewConsumer("consumer" + strconv.FormatInt(int64(i), 10))
+		if err != nil {
+			t.Fatalf("error in creating a consumer :: %v", err)
+		}
+	}
+
+	if err := bq.Close(); err != nil {
+		t.Fatalf("error in closing bigqueue :: %v", err)
+	}
+	if bqTemp, err := NewMmapQueue(testDir, SetArenaSize(arenaSize)); err != nil {
+		t.Fatalf("unable to get BigQueue: %v", err)
+	} else {
+		bq = bqTemp
+	}
+
+	for i := 0; i < 200; i++ {
+		_, err := bq.NewConsumer("consumer" + strconv.FormatInt(int64(i), 10))
+		if err != nil {
+			t.Fatalf("error in creating a consumer :: %v", err)
+		}
+	}
+
+	num := bq.md.getNumConsumers()
+	if num != 201 {
+		t.Fatalf("number of consumers do not match, exp: 3001, actual %v", num)
+	}
+
+	if err := bq.Close(); err != nil {
+		t.Fatalf("error in closing bigqueue :: %v", err)
+	}
+}
+
+func TestFlush(t *testing.T) {
+	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	bq, err := NewMmapQueue(testDir, SetPeriodicFlushOps(3), SetPeriodicFlushDuration(time.Second))
+	if err != nil {
+		t.Fatalf("unable to get BigQueue: %v", err)
+	}
+	defer func() {
+		if err := bq.Close(); err != nil {
+			t.Fatalf("error in closing bigqueue :: %v", err)
+		}
+	}()
+}
+
+func TestFlushErrOps(t *testing.T) {
+	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	_, err := NewMmapQueue(testDir, SetPeriodicFlushOps(0))
+	if err != ErrMustBeGreaterThanZero {
+		t.Fatalf("unable to get BigQueue: %v", err)
+	}
+}
+
+func TestFlushErrDuration(t *testing.T) {
+	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	_, err := NewMmapQueue(testDir, SetPeriodicFlushDuration(0))
+	if err != ErrMustBeGreaterThanZero {
+		t.Fatalf("unable to get BigQueue: %v", err)
 	}
 }

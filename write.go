@@ -1,44 +1,5 @@
 package bigqueue
 
-// writer knows how to copy data of given length to arena
-type writer interface {
-	// returns the length of the data that writer holds
-	len() int
-
-	// writes the data to arena starting at given offset. It is possible that the
-	// whole data that writer holds may not fit in the given arena. Hence, an index
-	// into the data is provided. The data is copied starting from index until either
-	// no more data is left, or no space is left in the given arena to write more data.
-	writeTo(aa *arena, offset, index int) int
-}
-
-// bytesWriter holds a slice of bytes
-type bytesWriter struct {
-	b []byte
-}
-
-func (bw *bytesWriter) len() int {
-	return len(bw.b)
-}
-
-func (bw *bytesWriter) writeTo(aa *arena, offset, index int) int {
-	n, _ := aa.WriteAt(bw.b[index:], int64(offset))
-	return n
-}
-
-// stringWriter holds a string that can be written into arenas
-type stringWriter struct {
-	s string
-}
-
-func (sw *stringWriter) len() int {
-	return len(sw.s)
-}
-
-func (sw *stringWriter) writeTo(aa *arena, offset, index int) int {
-	return aa.WriteStringAt(sw.s[index:], int64(offset))
-}
-
 // Enqueue adds a new slice of byte element to the tail of the queue
 func (q *MmapQueue) Enqueue(message []byte) error {
 	return q.enqueue(&bytesWriter{b: message})
@@ -54,7 +15,7 @@ func (q *MmapQueue) EnqueueString(message string) error {
 // fit into one arena. This function takes care of spreading the data across
 // multiple arenas when necessary.
 func (q *MmapQueue) enqueue(w writer) error {
-	aid, offset := q.index.getTail()
+	aid, offset := q.md.getTail()
 
 	newAid, newOffset, err := q.writeLength(aid, offset, uint64(w.len()))
 	if err != nil {
@@ -67,8 +28,9 @@ func (q *MmapQueue) enqueue(w writer) error {
 	if err != nil {
 		return err
 	}
+
 	// update tail
-	q.index.putTail(aid, offset)
+	q.md.putTail(aid, offset)
 	q.mutOps++
 
 	return q.flushPeriodic()
@@ -87,7 +49,6 @@ func (q *MmapQueue) writeLength(aid, offset int, length uint64) (int, int, error
 		return 0, 0, err
 	}
 	aa.WriteUint64At(length, int64(offset))
-	aa.dirty = true
 
 	// update offset now
 	offset += cInt64Size
@@ -98,10 +59,8 @@ func (q *MmapQueue) writeLength(aid, offset int, length uint64) (int, int, error
 	return aid, offset, nil
 }
 
-// writeBytes writes byteSlice in arena(s) with aid starting at offset
-func (q *MmapQueue) writeBytes(w writer, aid, offset int) (
-	int, int, error) {
-
+// writeBytes writes byteSlice in arena(s) with aid starting at offset.
+func (q *MmapQueue) writeBytes(w writer, aid, offset int) (int, int, error) {
 	length := w.len()
 	counter := 0
 	for {
@@ -113,7 +72,6 @@ func (q *MmapQueue) writeBytes(w writer, aid, offset int) (
 		bytesWritten := w.writeTo(aa, offset, counter)
 		counter += bytesWritten
 		offset += bytesWritten
-		aa.dirty = true
 
 		// ensure the next arena is available if needed
 		if offset == q.conf.arenaSize {

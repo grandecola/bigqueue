@@ -50,13 +50,11 @@
 //
 // Read from bigqueue:
 //
-//	elem, err := bq.Peek()        // size = 1
-//	err := bq.Dequeue()           // size = 0
+//	elem, err := bq.Dequeue()
 //
 // we can also read string data from bigqueue:
 //
-//  elem, err := bq.PeekString()  // size = 1
-//  err := bq.Dequeue()           // size = 0
+//  elem, err := bq.DequeueString()
 //
 // Check whether bigqueue has non zero elements:
 //

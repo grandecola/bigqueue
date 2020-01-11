@@ -172,7 +172,7 @@ func BenchmarkDequeue(b *testing.B) {
 			bq, err := NewMmapQueue(dir, SetArenaSize(param.arenaSize),
 				SetMaxInMemArenas(param.maxInMemArenaCount))
 			if err != nil {
-				b.Fatalf("unble to create bigqueue: %s", err)
+				b.Fatalf("unable to create bigqueue: %s", err)
 			}
 
 			for i := 0; i < b.N; i++ {
@@ -184,41 +184,8 @@ func BenchmarkDequeue(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				if err := bq.Dequeue(); err != nil {
+				if _, err := bq.Dequeue(); err != nil {
 					b.Fatalf("unable to dequeue: %s", err)
-				}
-			}
-			b.StopTimer()
-
-			_ = bq.Close()
-			removeBenchDir(b, dir)
-		})
-	}
-}
-
-func BenchmarkPeek(b *testing.B) {
-	for _, param := range getBenchParams() {
-		b.Run(fmt.Sprintf("ArenaSize-%s/MessageSize-%s/MaxMem-%s", param.arenaSizeString,
-			param.messageSizeString, param.maxInMemArenaString), func(b *testing.B) {
-
-			dir := path.Join(os.TempDir(), "testdir")
-			createBenchDir(b, dir)
-
-			bq, err := NewMmapQueue(dir, SetArenaSize(param.arenaSize),
-				SetMaxInMemArenas(param.maxInMemArenaCount))
-			if err != nil {
-				b.Fatalf("unble to create bigqueue: %s", err)
-			}
-
-			if err := bq.Enqueue(param.message); err != nil {
-				b.Fatalf("unable to enqueue: %s", err)
-			}
-
-			b.ReportAllocs()
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				if _, err := bq.Peek(); err != nil {
-					b.Fatalf("unable to peek: %s", err)
 				}
 			}
 
