@@ -973,25 +973,3 @@ func TestFlush(t *testing.T) {
 		}
 	}()
 }
-
-func TestFlushErrOps(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
-
-	_, err := NewMmapQueue(testDir, SetPeriodicFlushOps(0))
-	if err != ErrMustBeGreaterThanZero {
-		t.Fatalf("unable to get BigQueue: %v", err)
-	}
-}
-
-func TestFlushErrDuration(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
-
-	_, err := NewMmapQueue(testDir, SetPeriodicFlushDuration(0))
-	if err != ErrMustBeGreaterThanZero {
-		t.Fatalf("unable to get BigQueue: %v", err)
-	}
-}

@@ -13,7 +13,7 @@ const (
 	cMinMaxInMemArenas = 3
 
 	// values chosen arbitrarily
-	cDefaultMutOps      = 100000
+	cDefaultMutOps      = 1000000
 	cDefaultflushPeriod = time.Second
 )
 
@@ -22,8 +22,6 @@ var (
 	ErrTooSmallArenaSize = errors.New("too small arena size")
 	// ErrTooFewInMemArenas is returned when number of arenas allowed in memory < 3.
 	ErrTooFewInMemArenas = errors.New("too few in memory arenas")
-	// ErrMustBeGreaterThanZero is returned when a config value has non-positive value.
-	ErrMustBeGreaterThanZero = errors.New("must be greater than zero")
 )
 
 // bqConfig stores all the configuration related to bigqueue
@@ -86,10 +84,6 @@ func SetMaxInMemArenas(maxInMemArenas int) Option {
 // For performance this value should be high.
 func SetPeriodicFlushOps(flushMutOps int64) Option {
 	return func(c *bqConfig) error {
-		if flushMutOps < 1 {
-			return ErrMustBeGreaterThanZero
-		}
-
 		c.flushMutOps = flushMutOps
 		return nil
 	}
@@ -105,10 +99,6 @@ func SetPeriodicFlushOps(flushMutOps int64) Option {
 func SetPeriodicFlushDuration(flushPeriod time.Duration) Option {
 	// TODO: in future we should do a timely flush from a background scheduled goroutine.
 	return func(c *bqConfig) error {
-		if flushPeriod < 1 {
-			return ErrMustBeGreaterThanZero
-		}
-
 		c.flushPeriod = flushPeriod
 		return nil
 	}

@@ -129,8 +129,16 @@ func (q *MmapQueue) Flush() error {
 }
 
 func (q *MmapQueue) flushPeriodic() error {
-	enoughOps := q.mutOps >= q.conf.flushMutOps
-	enoughTime := time.Since(q.lastFlush) >= q.conf.flushPeriod
+	enoughOps := false
+	if q.conf.flushMutOps != 0 {
+		enoughOps = q.mutOps >= q.conf.flushMutOps
+	}
+
+	enoughTime := false
+	if q.conf.flushPeriod != 0 {
+		enoughTime = time.Since(q.lastFlush) >= q.conf.flushPeriod
+	}
+
 	if enoughOps || enoughTime {
 		return q.Flush()
 	}
