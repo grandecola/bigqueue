@@ -914,6 +914,116 @@ func TestConsumerReadWriteCornerCases(t *testing.T) {
 	}
 }
 
+func TestCopyConsumerReadWriteCornerCases(t *testing.T) {
+	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	arenaSize := 8 * 1024
+	bq, err := NewMmapQueue(testDir, SetArenaSize(arenaSize))
+	if err != nil {
+		t.Fatalf("unable to get BigQueue: %v", err)
+	}
+
+	for i := 1; i < 10; i++ {
+		msgLength := i*arenaSize/2 - 8
+		if i == 5 {
+			msgLength -= 8
+		}
+		msg := bytes.Repeat([]byte("a"), msgLength)
+		if err := bq.Enqueue(msg); err != nil {
+			t.Fatalf("enqueue failed :: %v", err)
+		}
+
+		if bq.IsEmpty() {
+			t.Fatalf("BigQueue should not be empty")
+		}
+
+		if err := bq.Close(); err != nil {
+			t.Fatalf("error in closing bigqueue :: %v", err)
+		}
+		if bqTemp, err := NewMmapQueue(testDir, SetArenaSize(arenaSize)); err != nil {
+			t.Fatalf("unable to get BigQueue: %v", err)
+		} else {
+			bq = bqTemp
+		}
+
+		if poppedMsg, err := bq.Dequeue(); err != nil {
+			t.Fatalf("unable to dequeue :: %v", err)
+		} else if !bytes.Equal(msg, poppedMsg) {
+			t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
+		}
+
+		if !bq.IsEmpty() {
+			t.Fatalf("BigQueue should be empty")
+		}
+
+		lastC, err := bq.NewConsumer("consumer" + strconv.FormatInt(int64(i-1), 10))
+		if err != nil {
+			t.Fatalf("error in creating a consumer :: %v", err)
+		}
+		cur, err := bq.FromConsumer("consumer"+strconv.FormatInt(int64(i), 10), lastC)
+		if err != nil {
+			t.Fatalf("error in creating a consumer :: %v", err)
+		}
+
+		if cur.IsEmpty() {
+			t.Fatalf("BigQueue should not be empty for consumer")
+		}
+
+		for j := 1; j <= i; j++ {
+			c, err := bq.NewConsumer("consumer" + strconv.FormatInt(int64(j), 10))
+			if err != nil {
+				t.Fatalf("error in creating a consumer :: %v", err)
+			}
+
+			if poppedMsg, err := c.DequeueString(); err != nil {
+				t.Fatalf("unable to dequeue from consumer :: %v", err)
+			} else if string(msg) != poppedMsg {
+				t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
+			}
+
+			if !c.IsEmpty() {
+				t.Fatalf("BigQueue should be empty")
+			}
+		}
+	}
+
+	if err := bq.Close(); err != nil {
+		t.Fatalf("error in closing bigqueue :: %v", err)
+	}
+}
+
+func TestConsumersFromDifferentQueuesErr(t *testing.T) {
+	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	bq, err := NewMmapQueue(testDir)
+	if err != nil {
+		t.Fatalf("unable to get BigQueue: %v", err)
+	}
+
+	c1, err := bq.NewConsumer("consumer1")
+	if err != nil {
+		t.Fatalf("error in creating a consumer :: %v", err)
+	}
+
+	if err := bq.Close(); err != nil {
+		t.Fatalf("error in closing bigqueue :: %v", err)
+	}
+
+	if bqTemp, err := NewMmapQueue(testDir); err != nil {
+		t.Fatalf("unable to get BigQueue: %v", err)
+	} else {
+		bq = bqTemp
+	}
+
+	if _, err := bq.FromConsumer("consumer1", c1); err != ErrDifferentQueues {
+		t.Fatalf("expected consumers from different queues error, returned: %v", err)
+	}
+}
+
 func TestManyConsumers(t *testing.T) {
 	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
 	createTestDir(t, testDir)

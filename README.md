@@ -20,6 +20,8 @@ go get github.com/grandecola/bigqueue
 * Only works on Little Endian architecture
 
 ## Usage
+
+### Standard API
 Create or open a bigqueue:
 ```go
 bq, err := bigqueue.NewMmapQueue("path/to/queue")
@@ -38,7 +40,8 @@ defer bq.Close()
 Bigqueue also allows setting up the maximum possible memory that it
 can use. By default, the maximum memory is set to [3 x Arena Size].
 ```go
-bq, err := bigqueue.NewMmapQueue("path/to/queue", bigqueue.SetArenaSize(4*1024), bigqueue.SetMaxInMemArenas(10))
+bq, err := bigqueue.NewQueue("path/to/queue", bigqueue.SetArenaSize(4*1024),
+	    bigqueue.SetMaxInMemArenas(10))
 defer bq.Close()
 ```
 In this case, bigqueue will never allocate more memory than `4KB*10=40KB`. This
@@ -49,7 +52,7 @@ of mutate (enqueue/dequeue) operations. Flush syncs the in memory changes of all
 memory mapped files with disk. *This is a best effort flush*. Elapsed time and
 number of mutate operations are only checked upon an enqueue/dequeue.
 
-This is how you can set these options -
+This is how we can set these options:
 ```go
 bq, err := bigqueue.NewQueue("path/to/queue", bigqueue.SetPeriodicFlushOps(2))
 ```
@@ -62,12 +65,12 @@ In this case, a flush is done after one minute elapses and an Enqueue/Dequeue is
 
 Write to bigqueue:
 ```go
-err := bq.Enqueue([]byte("elem"))   // size = 1
+err := bq.Enqueue([]byte("elem"))
 ```
 
 bigqueue allows writing string data directly, avoiding conversion to `[]byte`:
 ```go
-err := bq.EnqueueString("elem")   // size = 2
+err := bq.EnqueueString("elem")
 ```
 
 Read from bigqueue:
@@ -77,12 +80,37 @@ elem, err := bq.Dequeue()
 
 we can also read string data from bigqueue:
 ```go
-elem, err := bq.DequeueString
+elem, err := bq.DequeueString()
 ```
 
 Check whether bigqueue has non zero elements:
 ```go
 isEmpty := bq.IsEmpty()
+```
+
+### Advanced API
+bigqueue allows reading data from bigqueue using consumers similar to Kafka. This allows
+multiple consumers from reading data at different offsets (not in thread safe manner yet).
+The offsets of each consumer are persisted on disk and can be retrieved by creating a
+consumer with the same name. Data will be read from the same offset where it was left off.
+
+We can create a new consumer as follows. The offsets of a new consumer are set at the
+start of the queue wherever the first non-deleted element is.
+```go
+consumer, err := bq.NewConsumer("consumer")
+```
+
+We can also copy an existing consumer. This will create a consumer that will have the
+same offsets into the queue as that of the existing consumer.
+```go
+copyConsumer, err := bq.FromConsumer("copyConsumer", consumer)
+```
+
+Now, read operations can be performed on the consumer:
+```go
+isEmpty := consumer.IsEmpty()
+elem, err := consumer.Dequeue()
+elem, err := consumer.DequeueString()
 ```
 
 ## Benchmarks

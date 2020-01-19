@@ -16,6 +16,9 @@ var (
 	// ErrInvalidArenaSize is returned when persisted arena size
 	// doesn't match with desired arena size.
 	ErrInvalidArenaSize = errors.New("mismatch in arena size")
+	// ErrDifferentQueues is returned when caller wants to copy
+	// offsets from a consumer from a different queue.
+	ErrDifferentQueues = errors.New("consumers from different queues")
 )
 
 // MmapQueue implements Queue interface.
@@ -91,6 +94,25 @@ func (q *MmapQueue) NewConsumer(name string) (*Consumer, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return &Consumer{mq: q, base: base}, nil
+}
+
+// FromConsumer creates a new consumer or finds an existing one with same name.
+// It also copies the offsets from the given consumer to this consumer.
+func (q *MmapQueue) FromConsumer(name string, from *Consumer) (*Consumer, error) {
+	if q != from.mq {
+		return nil, ErrDifferentQueues
+	}
+
+	base, err := q.md.getConsumer(name)
+	if err != nil {
+		return nil, err
+	}
+
+	// update offsets to given consumer
+	aid, pos := q.md.getConsumerHead(from.base)
+	q.md.putConsumerHead(base, aid, pos)
 
 	return &Consumer{mq: q, base: base}, nil
 }
