@@ -24,7 +24,7 @@ var (
 	ErrTooFewInMemArenas = errors.New("too few in memory arenas")
 )
 
-// bqConfig stores all the configuration related to bigqueue
+// bqConfig stores all the configuration related to bigqueue.
 type bqConfig struct {
 	arenaSize      int
 	maxInMemArenas int
@@ -78,7 +78,8 @@ func SetMaxInMemArenas(maxInMemArenas int) Option {
 // SetPeriodicFlushOps returns an Option that sets the number of
 // mutate operations (enqueue/dequeue) after which the queue's in-memory
 // changes will be flushed to disk. This is a best effort flush and number
-// of mutate operations is checked upon an enqueue/dequeue.
+// of mutate operations is checked upon an enqueue/dequeue. If the value
+// is set to <= 0, no periodic flush will be performed.
 //
 // For durability this value should be low.
 // For performance this value should be high.
@@ -90,9 +91,10 @@ func SetPeriodicFlushOps(flushMutOps int64) Option {
 }
 
 // SetPeriodicFlushDuration returns an Option that sets a periodic
-// flush every given duration after which the queue's in-memory changes
-// will be flushed to disk. This is a best effort flush and elapsed time is
-// checked upon an enqueue/dequeue only.
+// flush every given duration after which the queue's in-memory
+// changes will be flushed to disk. This is a best effort flush and
+// elapsed time is checked upon an enqueue/dequeue only. If the value
+// is set to <= 0, no periodic flush will be performed.
 //
 // For durability this value should be low.
 // For performance this value should be high.

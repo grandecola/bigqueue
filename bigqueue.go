@@ -92,11 +92,7 @@ func (q *MmapQueue) NewConsumer(name string) (*Consumer, error) {
 		return nil, err
 	}
 
-	return &Consumer{
-		mq:   q,
-		name: name,
-		base: base,
-	}, nil
+	return &Consumer{mq: q, base: base}, nil
 }
 
 // Close will close metadata and arena manager.
@@ -130,12 +126,12 @@ func (q *MmapQueue) Flush() error {
 
 func (q *MmapQueue) flushPeriodic() error {
 	enoughOps := false
-	if q.conf.flushMutOps != 0 {
+	if q.conf.flushMutOps > 0 {
 		enoughOps = q.mutOps >= q.conf.flushMutOps
 	}
 
 	enoughTime := false
-	if q.conf.flushPeriod != 0 {
+	if q.conf.flushPeriod > 0 {
 		enoughTime = time.Since(q.lastFlush) >= q.conf.flushPeriod
 	}
 

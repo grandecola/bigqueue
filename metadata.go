@@ -14,7 +14,9 @@ import (
 const (
 	cMetadataVersion  = 1
 	cMetadataFileName = "metadata.dat"
-	cMetadataSize     = 56
+
+	// size of file without any consumer information.
+	cMetadataSize = 56
 )
 
 var (
@@ -34,36 +36,50 @@ type metadata struct {
 func newMetadata(dataDir string, arenaSize int) (*metadata, error) {
 	metaPath := filepath.Join(dataDir, cMetadataFileName)
 	info, err := os.Stat(metaPath)
-	if err != nil && !os.IsNotExist(err) {
+	switch {
+	case err != nil && !os.IsNotExist(err):
 		return nil, fmt.Errorf("error in reading metadata file :: %w", err)
+	case err != nil && os.IsNotExist(err):
+		return createFile(metaPath)
+	default:
+		return loadFile(metaPath, info.Size())
+	}
+}
+
+// loadFile loads the file and builds the struct for metadata.
+func loadFile(metaPath string, size int64) (*metadata, error) {
+	aa, err := newArena(metaPath, int(size))
+	if err != nil {
+		return nil, fmt.Errorf("error in creating arena for metadata file :: %w", err)
 	}
 
-	// if file exists
-	if err == nil {
-		aa, err := newArena(metaPath, int(info.Size()))
-		if err != nil {
-			return nil, fmt.Errorf("error in creating arena for metadata file :: %w", err)
-		}
-
-		md := &metadata{
-			aa:   aa,
-			co:   make(map[string]int64),
-			file: metaPath,
-			size: info.Size(),
-		}
-		if md.getVersion() != cMetadataVersion {
-			return nil, ErrIncompatibleVersion
-		}
-
-		md.loadConsumers()
-		return md, nil
+	md := &metadata{
+		aa:   aa,
+		co:   make(map[string]int64),
+		file: metaPath,
+		size: size,
+	}
+	if md.getVersion() != cMetadataVersion {
+		return nil, ErrIncompatibleVersion
 	}
 
-	// if file doesn't exist
+	base := int64(cMetadataSize)
+	for i := 0; i < md.getNumConsumers(); i++ {
+		name := md.getConsumerName(base)
+		md.co[name] = base
+		base += int64(len(name)) + 24
+	}
+
+	return md, nil
+}
+
+// createFile creates a new metadata file.
+func createFile(metaPath string) (*metadata, error) {
 	aa, err := newArena(metaPath, cMetadataSize)
 	if err != nil {
 		return nil, fmt.Errorf("error in creating arena for metadata file :: %w", err)
 	}
+
 	md := &metadata{
 		aa:   aa,
 		co:   make(map[string]int64),
@@ -92,9 +108,9 @@ func (m *metadata) putVersion() {
 }
 
 // getHead reads the value of head of the queue from the metadata.
-// head points the first element that is still not deleted yet.
+// head points to the first element that is still not deleted yet.
 // Head of a bigqueue can be identified using:
-//   1. arena ID
+//   1. Arena ID
 //   2. Position (offset) in the arena
 //
 //   <------- head aid ------> <------- head pos ------>
@@ -114,7 +130,7 @@ func (m *metadata) putHead(aid, pos int) {
 
 // getTail reads the values of tail of the queue from the metadata arena.
 // Tail of a bigqueue, similar to head, can be identified using:
-//   1. arena ID
+//   1. Arena ID
 //   2. Position (offset) in the arena
 //
 //   <------- tail aid ------> <------- tail pos ------>
@@ -162,6 +178,15 @@ func (m *metadata) getNumConsumers() int {
 func (m *metadata) putNumConsumers(size int) {
 	m.aa.WriteUint64At(uint64(size), 48)
 }
+
+/*
+ * Now, we store all the conusmer information in the metadata file.
+ * We store 4 things for a given consumer (in this order) -
+ *   1. Consumer name length (8 bytes)
+ *   2. Head arena id (8 bytes)
+ *   3. Head position in the arena (8 bytes)
+ *   4. Name of the consumer (length)
+ */
 
 // getConsumerLength reads the length of the consumer name for
 // the consumer stored at a given base offset in metadata file.
@@ -212,16 +237,6 @@ func (m *metadata) putConsumerName(base int64, name string) {
 	m.aa.WriteStringAt(name, base+24)
 }
 
-// loadConsumers reads all the consumers and their base offset and stores it in a map.
-func (m *metadata) loadConsumers() {
-	base := int64(cMetadataSize)
-	for i := 0; i < m.getNumConsumers(); i++ {
-		name := m.getConsumerName(base)
-		m.co[name] = base
-		base += int64(len(name)) + 24
-	}
-}
-
 // putConsumer writes the consumer in the metadata file.
 func (m *metadata) putConsumer(base int64, name string) {
 	m.putConsumerLength(base, len(name))
@@ -232,31 +247,22 @@ func (m *metadata) putConsumer(base int64, name string) {
 	m.co[name] = base
 }
 
+// getConsumer either finds an existing consumer with the given name or initializes
+// a new consumer with the given name and stores it into the metadata file.
 func (m *metadata) getConsumer(name string) (int64, error) {
 	if b, ok := m.co[name]; ok {
 		return b, nil
 	}
 
-	// need to add consumer to metadata
-	if err := m.close(); err != nil {
+	oldsize := m.size
+	newsize := m.size + 24 + int64(len(name))
+	if err := m.extendFile(newsize); err != nil {
 		return 0, err
 	}
 
-	// extend the file
-	base := m.size
-	m.size = m.size + 24 + int64(len(name))
-	if err := os.Truncate(m.file, m.size); err != nil {
-		return 0, fmt.Errorf("error in extending the file :: %w", err)
-	}
-
-	// remap the arena with bigger size
-	var err error
-	if m.aa, err = newArena(m.file, int(m.size)); err != nil {
-		return 0, fmt.Errorf("error in creating arena for metadata file :: %w", err)
-	}
-	m.putConsumer(base, name)
-
-	return base, nil
+	m.size = newsize
+	m.putConsumer(oldsize, name)
+	return oldsize, nil
 }
 
 // flush writes the memory state of the metadata arena on to disk.
@@ -271,4 +277,25 @@ func (m *metadata) close() error {
 	}
 
 	return m.aa.Unmap()
+}
+
+// extendFile extends the metadata file to given size.
+func (m *metadata) extendFile(size int64) error {
+	if err := m.close(); err != nil {
+		return err
+	}
+
+	// extend the file
+	if err := os.Truncate(m.file, size); err != nil {
+		return fmt.Errorf("error in extending metadata file :: %w", err)
+	}
+
+	// remap the arena with bigger size
+	aa, err := newArena(m.file, int(size))
+	if err != nil {
+		return fmt.Errorf("error in remapping metadata file :: %w", err)
+	}
+
+	m.aa = aa
+	return nil
 }

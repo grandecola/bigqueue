@@ -27,9 +27,8 @@ func (bw *bytesWriter) len() int {
 }
 
 // WriteTo writes data that it holds from index to end of
-// the data or arena into the arena starting at the offset.
+// the data or arena, into the arena starting at the offset.
 func (bw *bytesWriter) writeTo(aa *mmap.File, offset, index int) int {
-	// WriteAt returns an err that is always nil, hence ignored.
 	n, _ := aa.WriteAt(bw.b[index:], int64(offset))
 	return n
 }
@@ -39,7 +38,7 @@ type stringWriter struct {
 	s string
 }
 
-// Len returns the length of string that stringWriter holds.
+// len returns the length of string that stringWriter holds.
 func (sw *stringWriter) len() int {
 	return len(sw.s)
 }

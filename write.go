@@ -1,11 +1,11 @@
 package bigqueue
 
-// Enqueue adds a new slice of byte element to the tail of the queue
+// Enqueue adds a new slice of byte element to the tail of the queue.
 func (q *MmapQueue) Enqueue(message []byte) error {
 	return q.enqueue(&bytesWriter{b: message})
 }
 
-// EnqueueString adds a new string element to the tail of the queue
+// EnqueueString adds a new string element to the tail of the queue.
 func (q *MmapQueue) EnqueueString(message string) error {
 	return q.enqueue(&stringWriter{s: message})
 }
@@ -17,19 +17,17 @@ func (q *MmapQueue) EnqueueString(message string) error {
 func (q *MmapQueue) enqueue(w writer) error {
 	aid, offset := q.md.getTail()
 
-	newAid, newOffset, err := q.writeLength(aid, offset, uint64(w.len()))
+	var err error
+	aid, offset, err = q.writeLength(aid, offset, uint64(w.len()))
 	if err != nil {
 		return err
 	}
-	aid, offset = newAid, newOffset
 
-	// write data
 	aid, offset, err = q.writeBytes(w, aid, offset)
 	if err != nil {
 		return err
 	}
 
-	// update tail
 	q.md.putTail(aid, offset)
 	q.mutOps++
 
@@ -39,7 +37,6 @@ func (q *MmapQueue) enqueue(w writer) error {
 // writeLength writes the length into tail arena. Note that length is
 // always written in 1 arena, it is never broken across arenas.
 func (q *MmapQueue) writeLength(aid, offset int, length uint64) (int, int, error) {
-	// ensure that new arena is available if needed
 	if offset+cInt64Size > q.conf.arenaSize {
 		aid, offset = aid+1, 0
 	}
@@ -50,7 +47,6 @@ func (q *MmapQueue) writeLength(aid, offset int, length uint64) (int, int, error
 	}
 	aa.WriteUint64At(length, int64(offset))
 
-	// update offset now
 	offset += cInt64Size
 	if offset == q.conf.arenaSize {
 		aid, offset = aid+1, 0
@@ -73,7 +69,6 @@ func (q *MmapQueue) writeBytes(w writer, aid, offset int) (int, int, error) {
 		counter += bytesWritten
 		offset += bytesWritten
 
-		// ensure the next arena is available if needed
 		if offset == q.conf.arenaSize {
 			aid, offset = aid+1, 0
 		}

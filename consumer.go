@@ -1,9 +1,9 @@
 package bigqueue
 
 // Consumer is a bigqueue consumer that allows reading data from bigqueue.
+// A consumer is represented using just a base offset into the metadata
 type Consumer struct {
 	mq   *MmapQueue
-	name string
 	base int64 // base offset in the metadata file
 }
 
