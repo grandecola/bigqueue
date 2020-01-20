@@ -122,102 +122,74 @@ Go version: 1.13
 
 ### NewMmapQueue
 ```go
-BenchmarkNewMmapQueue/ArenaSize-4KB-8         	     279	   4457479 ns/op	    2429 B/op	      43 allocs/op
-BenchmarkNewMmapQueue/ArenaSize-128KB-8       	     276	   4351779 ns/op	    2432 B/op	      43 allocs/op
-BenchmarkNewMmapQueue/ArenaSize-4MB-8         	     272	   4315690 ns/op	    2429 B/op	      43 allocs/op
-BenchmarkNewMmapQueue/ArenaSize-128MB-8       	     264	   4368081 ns/op	    2430 B/op	      43 allocs/op
+BenchmarkNewMmapQueue/ArenaSize-4KB-8         	     259	   4336293 ns/op	    2578 B/op	      44 allocs/op
+BenchmarkNewMmapQueue/ArenaSize-128KB-8       	     277	   4292180 ns/op	    2577 B/op	      44 allocs/op
+BenchmarkNewMmapQueue/ArenaSize-4MB-8         	     282	   4279293 ns/op	    2575 B/op	      44 allocs/op
+BenchmarkNewMmapQueue/ArenaSize-128MB-8       	     276	   4294212 ns/op	    2577 B/op	      44 allocs/op
 ```
 
 ### Enqueue
 ```go
-BenchmarkEnqueue/ArenaSize-4KB/MessageSize-128B/MaxMem-12KB-8         	 1209154	       983 ns/op	      52 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-4KB/MessageSize-128B/MaxMem-40KB-8         	 1232470	       993 ns/op	      52 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-4KB/MessageSize-128B/MaxMem-1GB-8          	 1340344	       916 ns/op	      52 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-4KB/MessageSize-128B/MaxMem-NoLimit-8      	 1310674	       917 ns/op	      52 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-4KB/MessageSize-16KB/MaxMem-40KB-8         	   10000	    111495 ns/op	    2487 B/op	      49 allocs/op
-BenchmarkEnqueue/ArenaSize-4KB/MessageSize-16KB/MaxMem-1GB-8          	   12082	     99689 ns/op	    2463 B/op	      49 allocs/op
-BenchmarkEnqueue/ArenaSize-4KB/MessageSize-16KB/MaxMem-NoLimit-8      	   12202	     98691 ns/op	    2455 B/op	      49 allocs/op
-BenchmarkEnqueue/ArenaSize-4KB/MessageSize-1MB/MaxMem-1GB-8           	     192	   6331195 ns/op	  157534 B/op	    3073 allocs/op
-BenchmarkEnqueue/ArenaSize-4KB/MessageSize-1MB/MaxMem-NoLimit-8       	     186	   6323666 ns/op	  155235 B/op	    3073 allocs/op
-BenchmarkEnqueue/ArenaSize-128KB/MessageSize-128B/MaxMem-384KB-8      	 5513988	       219 ns/op	      32 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-128KB/MessageSize-128B/MaxMem-1.25MB-8     	 5216648	       221 ns/op	      32 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-128KB/MessageSize-128B/MaxMem-1GB-8        	 5916529	       205 ns/op	      32 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-128KB/MessageSize-128B/MaxMem-NoLimit-8    	 5902616	       204 ns/op	      32 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-128KB/MessageSize-16KB/MaxMem-384KB-8      	   82014	     14913 ns/op	     107 B/op	       2 allocs/op
-BenchmarkEnqueue/ArenaSize-128KB/MessageSize-16KB/MaxMem-1.25MB-8     	   83192	     14671 ns/op	     107 B/op	       2 allocs/op
-BenchmarkEnqueue/ArenaSize-128KB/MessageSize-16KB/MaxMem-1GB-8        	   93020	     13877 ns/op	     107 B/op	       2 allocs/op
-BenchmarkEnqueue/ArenaSize-128KB/MessageSize-16KB/MaxMem-NoLimit-8    	   91248	     13667 ns/op	     107 B/op	       2 allocs/op
-BenchmarkEnqueue/ArenaSize-128KB/MessageSize-1MB/MaxMem-384KB-8       	    1224	    942900 ns/op	    4893 B/op	      97 allocs/op
-BenchmarkEnqueue/ArenaSize-128KB/MessageSize-1MB/MaxMem-1.25MB-8      	    1251	    935153 ns/op	    4886 B/op	      97 allocs/op
-BenchmarkEnqueue/ArenaSize-128KB/MessageSize-1MB/MaxMem-1GB-8         	    1363	    890850 ns/op	    4861 B/op	      97 allocs/op
-BenchmarkEnqueue/ArenaSize-128KB/MessageSize-1MB/MaxMem-NoLimit-8     	    1350	    843793 ns/op	    4863 B/op	      97 allocs/op
-BenchmarkEnqueue/ArenaSize-4MB/MessageSize-128B/MaxMem-12MB-8         	 6291542	       185 ns/op	      32 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-4MB/MessageSize-128B/MaxMem-40MB-8         	 5953832	       187 ns/op	      32 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-4MB/MessageSize-128B/MaxMem-1GB-8          	 6454640	       179 ns/op	      32 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-4MB/MessageSize-128B/MaxMem-NoLimit-8      	 6096469	       179 ns/op	      32 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-4MB/MessageSize-16KB/MaxMem-12MB-8         	  101112	     11337 ns/op	      34 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-4MB/MessageSize-16KB/MaxMem-40MB-8         	  102528	     11392 ns/op	      34 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-4MB/MessageSize-16KB/MaxMem-1GB-8          	  111819	     11127 ns/op	      34 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-4MB/MessageSize-16KB/MaxMem-NoLimit-8      	  112003	     10867 ns/op	      34 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-4MB/MessageSize-1MB/MaxMem-12MB-8          	    1711	    700932 ns/op	     178 B/op	       4 allocs/op
-BenchmarkEnqueue/ArenaSize-4MB/MessageSize-1MB/MaxMem-40MB-8          	    1630	    735637 ns/op	     178 B/op	       4 allocs/op
-BenchmarkEnqueue/ArenaSize-4MB/MessageSize-1MB/MaxMem-1GB-8           	    1510	    683575 ns/op	     179 B/op	       4 allocs/op
-BenchmarkEnqueue/ArenaSize-4MB/MessageSize-1MB/MaxMem-NoLimit-8       	    1647	    751768 ns/op	     178 B/op	       4 allocs/op
-BenchmarkEnqueue/ArenaSize-128MB/MessageSize-128B/MaxMem-256MB-8      	 6570226	       183 ns/op	      32 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-128MB/MessageSize-128B/MaxMem-1.25GB-8     	 6649483	       181 ns/op	      32 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-128MB/MessageSize-128B/MaxMem-NoLimit-8    	 6607172	       179 ns/op	      32 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-128MB/MessageSize-16KB/MaxMem-256MB-8      	   93114	     11044 ns/op	      32 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-128MB/MessageSize-16KB/MaxMem-1.25GB-8     	  113638	     11125 ns/op	      32 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-128MB/MessageSize-16KB/MaxMem-NoLimit-8    	  112514	     10783 ns/op	      32 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-128MB/MessageSize-1MB/MaxMem-256MB-8       	    1702	    721401 ns/op	      36 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-128MB/MessageSize-1MB/MaxMem-1.25GB-8      	    1831	    767649 ns/op	      36 B/op	       1 allocs/op
-BenchmarkEnqueue/ArenaSize-128MB/MessageSize-1MB/MaxMem-NoLimit-8     	    1670	    703520 ns/op	      36 B/op	       1 allocs/op
+BenchmarkEnqueue/ArenaSize-4KB/MessageSize-128B/MaxMem-12KB-8         	 1227482	       974 ns/op	      50 B/op	       1 allocs/op
+BenchmarkEnqueue/ArenaSize-4KB/MessageSize-128B/MaxMem-40KB-8         	 1227622	       990 ns/op	      50 B/op	       1 allocs/op
+BenchmarkEnqueue/ArenaSize-4KB/MessageSize-128B/MaxMem-NoLimit-8      	 1349326	       905 ns/op	      52 B/op	       1 allocs/op
+BenchmarkEnqueue/ArenaSize-128KB/MessageSize-4KB/MaxMem-384KB-8       	  295298	      3629 ns/op	      49 B/op	       1 allocs/op
+BenchmarkEnqueue/ArenaSize-128KB/MessageSize-4KB/MaxMem-1.25MB-8      	  335749	      3684 ns/op	      49 B/op	       1 allocs/op
+BenchmarkEnqueue/ArenaSize-128KB/MessageSize-4KB/MaxMem-NoLimit-8     	  371170	      3407 ns/op	      51 B/op	       1 allocs/op
+BenchmarkEnqueue/ArenaSize-4MB/MessageSize-128KB/MaxMem-12MB-8        	   13934	     82812 ns/op	      49 B/op	       1 allocs/op
+BenchmarkEnqueue/ArenaSize-4MB/MessageSize-128KB/MaxMem-40MB-8        	   14103	     84175 ns/op	      49 B/op	       1 allocs/op
+BenchmarkEnqueue/ArenaSize-4MB/MessageSize-128KB/MaxMem-NoLimit-8     	   15004	     86985 ns/op	      52 B/op	       1 allocs/op
+BenchmarkEnqueue/ArenaSize-128MB/MessageSize-4MB/MaxMem-256MB-8       	     450	   2908083 ns/op	      50 B/op	       1 allocs/op
+BenchmarkEnqueue/ArenaSize-128MB/MessageSize-4MB/MaxMem-1.25GB-8      	     474	   3051462 ns/op	      49 B/op	       1 allocs/op
+BenchmarkEnqueue/ArenaSize-128MB/MessageSize-4MB/MaxMem-NoLimit-8     	     469	   2928673 ns/op	      51 B/op	       1 allocs/op
+```
+
+### EnqueueString
+```go
+BenchmarkEnqueueString/ArenaSize-4KB/MessageSize-128B/MaxMem-12KB-8   	 1143330	      1067 ns/op	      34 B/op	       1 allocs/op
+BenchmarkEnqueueString/ArenaSize-4KB/MessageSize-128B/MaxMem-40KB-8   	 1118235	      1111 ns/op	      34 B/op	       1 allocs/op
+BenchmarkEnqueueString/ArenaSize-4KB/MessageSize-128B/MaxMem-NoLimit-8         	 1267702	     29356 ns/op	      36 B/op	       1 allocs/op
+BenchmarkEnqueueString/ArenaSize-128KB/MessageSize-4KB/MaxMem-384KB-8          	  333758	      3695 ns/op	      33 B/op	       1 allocs/op
+BenchmarkEnqueueString/ArenaSize-128KB/MessageSize-4KB/MaxMem-1.25MB-8         	  324952	      3810 ns/op	      33 B/op	       1 allocs/op
+BenchmarkEnqueueString/ArenaSize-128KB/MessageSize-4KB/MaxMem-NoLimit-8        	  361842	     90321 ns/op	      35 B/op	       1 allocs/op
+BenchmarkEnqueueString/ArenaSize-4MB/MessageSize-128KB/MaxMem-12MB-8           	   13420	     94311 ns/op	      33 B/op	       1 allocs/op
+BenchmarkEnqueueString/ArenaSize-4MB/MessageSize-128KB/MaxMem-40MB-8           	   13555	     87892 ns/op	      33 B/op	       1 allocs/op
+BenchmarkEnqueueString/ArenaSize-4MB/MessageSize-128KB/MaxMem-NoLimit-8        	   14716	    269216 ns/op	      36 B/op	       1 allocs/op
+BenchmarkEnqueueString/ArenaSize-128MB/MessageSize-4MB/MaxMem-256MB-8          	     393	   3820592 ns/op	      33 B/op	       1 allocs/op
+BenchmarkEnqueueString/ArenaSize-128MB/MessageSize-4MB/MaxMem-1.25GB-8         	     463	   4252438 ns/op	      34 B/op	       1 allocs/op
+BenchmarkEnqueueString/ArenaSize-128MB/MessageSize-4MB/MaxMem-NoLimit-8        	     386	   4935426 ns/op	      34 B/op	       1 allocs/op
 ```
 
 ### Dequeue
 ```go
-BenchmarkDequeue/ArenaSize-4KB/MessageSize-128B/MaxMem-12KB-8         	    1000	      1455 ns/op	      96 B/op	       3 allocs/op
-BenchmarkDequeue/ArenaSize-4KB/MessageSize-128B/MaxMem-40KB-8         	    5000	      5540 ns/op	     467 B/op	      16 allocs/op
-BenchmarkDequeue/ArenaSize-4KB/MessageSize-128B/MaxMem-1GB-8          	    5000	        58.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-4KB/MessageSize-128B/MaxMem-NoLimit-8      	    5000	        67.3 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-4KB/MessageSize-16KB/MaxMem-40KB-8         	     100	    372351 ns/op	   32789 B/op	    1165 allocs/op
-BenchmarkDequeue/ArenaSize-4KB/MessageSize-16KB/MaxMem-1GB-8          	    2000	       184 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-4KB/MessageSize-16KB/MaxMem-NoLimit-8      	    3000	       188 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-4KB/MessageSize-1MB/MaxMem-1GB-8           	     500	       501 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-4KB/MessageSize-1MB/MaxMem-NoLimit-8       	     500	       507 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-128KB/MessageSize-128B/MaxMem-384KB-8      	    5000	        99.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-128KB/MessageSize-128B/MaxMem-1.25MB-8     	    5000	        64.4 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-128KB/MessageSize-128B/MaxMem-1GB-8        	    5000	        75.9 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-128KB/MessageSize-128B/MaxMem-NoLimit-8    	    5000	        70.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-128KB/MessageSize-16KB/MaxMem-384KB-8      	     100	      5444 ns/op	     135 B/op	       4 allocs/op
-BenchmarkDequeue/ArenaSize-128KB/MessageSize-16KB/MaxMem-1.25MB-8     	     100	      4769 ns/op	      52 B/op	       1 allocs/op
-BenchmarkDequeue/ArenaSize-128KB/MessageSize-16KB/MaxMem-1GB-8        	    3000	       138 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-128KB/MessageSize-16KB/MaxMem-NoLimit-8    	    3000	       146 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-128KB/MessageSize-1MB/MaxMem-384KB-8       	     100	    795956 ns/op	   65072 B/op	    2322 allocs/op
-BenchmarkDequeue/ArenaSize-128KB/MessageSize-1MB/MaxMem-1.25MB-8      	     100	    822750 ns/op	   65072 B/op	    2322 allocs/op
-BenchmarkDequeue/ArenaSize-128KB/MessageSize-1MB/MaxMem-1GB-8         	    1000	       373 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-128KB/MessageSize-1MB/MaxMem-NoLimit-8     	    1000	       381 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-4MB/MessageSize-128B/MaxMem-12MB-8         	    5000	        65.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-4MB/MessageSize-128B/MaxMem-40MB-8         	    5000	        68.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-4MB/MessageSize-128B/MaxMem-1GB-8          	    5000	        60.3 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-4MB/MessageSize-128B/MaxMem-NoLimit-8      	    5000	        64.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-4MB/MessageSize-16KB/MaxMem-12MB-8         	    3000	      2669 ns/op	       3 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-4MB/MessageSize-16KB/MaxMem-40MB-8         	    5000	      2732 ns/op	       4 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-4MB/MessageSize-16KB/MaxMem-1GB-8          	    3000	       150 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-4MB/MessageSize-16KB/MaxMem-NoLimit-8      	    3000	       134 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-4MB/MessageSize-1MB/MaxMem-12MB-8          	     100	    122439 ns/op	     563 B/op	      18 allocs/op
-BenchmarkDequeue/ArenaSize-4MB/MessageSize-1MB/MaxMem-40MB-8          	     100	    130529 ns/op	     480 B/op	      16 allocs/op
-BenchmarkDequeue/ArenaSize-4MB/MessageSize-1MB/MaxMem-1GB-8           	    2000	    212331 ns/op	    7781 B/op	     277 allocs/op
-BenchmarkDequeue/ArenaSize-4MB/MessageSize-1MB/MaxMem-NoLimit-8       	    2000	       219 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-128MB/MessageSize-128B/MaxMem-256MB-8      	    5000	        63.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-128MB/MessageSize-128B/MaxMem-1.25GB-8     	    5000	        62.9 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-128MB/MessageSize-128B/MaxMem-NoLimit-8    	    5000	        71.0 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-128MB/MessageSize-16KB/MaxMem-256MB-8      	    3000	       149 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-128MB/MessageSize-16KB/MaxMem-1.25GB-8     	    5000	       134 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-128MB/MessageSize-16KB/MaxMem-NoLimit-8    	    3000	       133 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-128MB/MessageSize-1MB/MaxMem-256MB-8       	    2000	    131369 ns/op	      10 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-128MB/MessageSize-1MB/MaxMem-1.25GB-8      	    2000	    115991 ns/op	       6 B/op	       0 allocs/op
-BenchmarkDequeue/ArenaSize-128MB/MessageSize-1MB/MaxMem-NoLimit-8     	    2000	       205 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDequeue/ArenaSize-4KB/MessageSize-128B/MaxMem-12KB-8                  	 1000000	      6303 ns/op	     176 B/op	       2 allocs/op
+BenchmarkDequeue/ArenaSize-4KB/MessageSize-128B/MaxMem-40KB-8                  	 1000000	      9283 ns/op	     176 B/op	       2 allocs/op
+BenchmarkDequeue/ArenaSize-4KB/MessageSize-128B/MaxMem-NoLimit-8               	 6215215	       208 ns/op	     160 B/op	       2 allocs/op
+BenchmarkDequeue/ArenaSize-128KB/MessageSize-4KB/MaxMem-384KB-8                	  506739	      4813 ns/op	    4143 B/op	       2 allocs/op
+BenchmarkDequeue/ArenaSize-128KB/MessageSize-4KB/MaxMem-1.25MB-8               	  517282	      6274 ns/op	    4143 B/op	       2 allocs/op
+BenchmarkDequeue/ArenaSize-128KB/MessageSize-4KB/MaxMem-NoLimit-8              	  892928	      1341 ns/op	    4128 B/op	       2 allocs/op
+BenchmarkDequeue/ArenaSize-4MB/MessageSize-128KB/MaxMem-12MB-8                 	   25336	     46375 ns/op	  131127 B/op	       2 allocs/op
+BenchmarkDequeue/ArenaSize-4MB/MessageSize-128KB/MaxMem-40MB-8                 	   25876	     46788 ns/op	  131127 B/op	       2 allocs/op
+BenchmarkDequeue/ArenaSize-4MB/MessageSize-128KB/MaxMem-NoLimit-8              	   36745	     34488 ns/op	  131104 B/op	       2 allocs/op
+BenchmarkDequeue/ArenaSize-128MB/MessageSize-4MB/MaxMem-256MB-8                	     734	   1740006 ns/op	 4194386 B/op	       2 allocs/op
+BenchmarkDequeue/ArenaSize-128MB/MessageSize-4MB/MaxMem-1.25GB-8               	     931	   1591828 ns/op	 4194375 B/op	       2 allocs/op
+BenchmarkDequeue/ArenaSize-128MB/MessageSize-4MB/MaxMem-NoLimit-8              	     990	   1437580 ns/op	 4194336 B/op	       2 allocs/op
+```
+
+### DequeueString
+```go
+BenchmarkDequeueString/ArenaSize-4KB/MessageSize-128B/MaxMem-12KB-8            	 1000000	      6760 ns/op	     184 B/op	       3 allocs/op
+BenchmarkDequeueString/ArenaSize-4KB/MessageSize-128B/MaxMem-40KB-8            	 1000000	      9584 ns/op	     184 B/op	       3 allocs/op
+BenchmarkDequeueString/ArenaSize-4KB/MessageSize-128B/MaxMem-NoLimit-8         	 5069414	       247 ns/op	     168 B/op	       3 allocs/op
+BenchmarkDequeueString/ArenaSize-128KB/MessageSize-4KB/MaxMem-384KB-8          	  505219	      4913 ns/op	    4151 B/op	       3 allocs/op
+BenchmarkDequeueString/ArenaSize-128KB/MessageSize-4KB/MaxMem-1.25MB-8         	  499880	      6123 ns/op	    4151 B/op	       3 allocs/op
+BenchmarkDequeueString/ArenaSize-128KB/MessageSize-4KB/MaxMem-NoLimit-8        	  816019	      1398 ns/op	    4136 B/op	       3 allocs/op
+BenchmarkDequeueString/ArenaSize-4MB/MessageSize-128KB/MaxMem-12MB-8           	   25624	     45954 ns/op	  131135 B/op	       3 allocs/op
+BenchmarkDequeueString/ArenaSize-4MB/MessageSize-128KB/MaxMem-40MB-8           	   25681	     45620 ns/op	  131135 B/op	       3 allocs/op
+BenchmarkDequeueString/ArenaSize-4MB/MessageSize-128KB/MaxMem-NoLimit-8        	   36438	     34198 ns/op	  131112 B/op	       3 allocs/op
+BenchmarkDequeueString/ArenaSize-128MB/MessageSize-4MB/MaxMem-256MB-8          	     708	   1688158 ns/op	 4194398 B/op	       3 allocs/op
+BenchmarkDequeueString/ArenaSize-128MB/MessageSize-4MB/MaxMem-1.25GB-8         	     966	   2062903 ns/op	 4194384 B/op	       3 allocs/op
+BenchmarkDequeueString/ArenaSize-128MB/MessageSize-4MB/MaxMem-NoLimit-8        	    1008	   1469626 ns/op	 4194344 B/op	       3 allocs/op
 ```
 
 **Note:** Before running benchmarks `ulimit` and `vm.max_map_count` parameters should be adjusted using below commands:
