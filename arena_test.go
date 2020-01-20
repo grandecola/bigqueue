@@ -1,6 +1,7 @@
 package bigqueue
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -28,7 +29,7 @@ func TestNewArenaNoReadPerm(t *testing.T) {
 	}
 
 	aa, err := newArena("/temp.dat", 100)
-	if aa != nil || err == nil || !os.IsPermission(err) {
+	if aa != nil || err == nil || !os.IsPermission(errors.Unwrap(err)) {
 		t.Fatalf("unexpected return for newArena :: %v", err)
 	}
 }
@@ -105,7 +106,7 @@ func TestNewArenaLargerFile(t *testing.T) {
 func TestNewArenaNoFolder(t *testing.T) {
 	arenaSize := 100
 	aa, err := newArena("1/2/3/4/5/6/aa.dat", arenaSize)
-	if !os.IsNotExist(err) || aa != nil {
+	if !os.IsNotExist(errors.Unwrap(err)) || aa != nil {
 		t.Fatalf("expected file not exists error, returned: %v", err)
 	}
 }

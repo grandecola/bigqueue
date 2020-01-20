@@ -64,9 +64,9 @@ func ExternalSort(inputPath, tempPath, outputPath string, maxMemSortSize int) er
 
 // divide step divides all the input data into sorted group of elements.
 // Each group is persisted to disk using bigqueue interface.
-func divide(inputPath, tempPath string, maxMemSortSize int) ([]bigqueue.Queue, error) {
+func divide(inputPath, tempPath string, maxMemSortSize int) ([]*bigqueue.MmapQueue, error) {
 	log.Println("reading input file")
-	queues := make([]bigqueue.Queue, 0)
+	queues := make([]*bigqueue.MmapQueue, 0)
 
 	// open input file
 	fd, err := os.Open(inputPath)
@@ -131,9 +131,9 @@ func divide(inputPath, tempPath string, maxMemSortSize int) ([]bigqueue.Queue, e
 }
 
 // merge step merges the sorted group of elements stored in bigqueue using bigqueue
-func merge(tempPath string, k int, queues []bigqueue.Queue) (bigqueue.Queue, error) {
+func merge(tempPath string, k int, queues []*bigqueue.MmapQueue) (*bigqueue.MmapQueue, error) {
 	currentQueues := queues
-	nextQueues := make([]bigqueue.Queue, 0)
+	nextQueues := make([]*bigqueue.MmapQueue, 0)
 	for iteration := 0; len(currentQueues) != 1; iteration++ {
 		log.Printf("iteration %d, # queues %d\n", iteration, len(currentQueues))
 
@@ -157,13 +157,13 @@ func merge(tempPath string, k int, queues []bigqueue.Queue) (bigqueue.Queue, err
 		}
 
 		currentQueues = nextQueues
-		nextQueues = make([]bigqueue.Queue, 0)
+		nextQueues = make([]*bigqueue.MmapQueue, 0)
 	}
 
 	return currentQueues[0], nil
 }
 
-func mergeQueues(queueList []bigqueue.Queue, tempPath string) (bigqueue.Queue, error) {
+func mergeQueues(queueList []*bigqueue.MmapQueue, tempPath string) (*bigqueue.MmapQueue, error) {
 	const maxValue = int(^uint(0) >> 1)
 
 	mq, err := bigqueue.NewMmapQueue(getTempDir(tempPath), bigqueue.SetMaxInMemArenas(3))
@@ -180,9 +180,9 @@ func mergeQueues(queueList []bigqueue.Queue, tempPath string) (bigqueue.Queue, e
 			continue
 		}
 
-		val, err := queueList[i].Peek()
+		val, err := queueList[i].Dequeue()
 		if err != nil {
-			return nil, fmt.Errorf("unable to peek :: %v", err)
+			return nil, fmt.Errorf("unable to dequeue :: %v", err)
 		}
 		num, err := strconv.Atoi(string(val))
 		if err != nil {
@@ -200,10 +200,6 @@ func mergeQueues(queueList []bigqueue.Queue, tempPath string) (bigqueue.Queue, e
 	for empty < k {
 		top := segTree[1]
 
-		if err := queueList[top.index].Dequeue(); err != nil {
-			return nil, fmt.Errorf("unable to dequeue :: %v", err)
-		}
-
 		mq.Enqueue([]byte(strconv.Itoa(top.value)))
 
 		index := top.index + k
@@ -211,9 +207,9 @@ func mergeQueues(queueList []bigqueue.Queue, tempPath string) (bigqueue.Queue, e
 			empty++
 			segTree[index] = pair{maxValue, top.index}
 		} else {
-			val, err := queueList[top.index].Peek()
+			val, err := queueList[top.index].Dequeue()
 			if err != nil {
-				return nil, fmt.Errorf("unable to peek :: %v", err)
+				return nil, fmt.Errorf("unable to dequeue :: %v", err)
 			}
 
 			num, err := strconv.Atoi(string(val))
@@ -232,7 +228,7 @@ func mergeQueues(queueList []bigqueue.Queue, tempPath string) (bigqueue.Queue, e
 	return mq, nil
 }
 
-func buildBigQueue(tempPath string, data []int) (bigqueue.Queue, error) {
+func buildBigQueue(tempPath string, data []int) (*bigqueue.MmapQueue, error) {
 	bq, err := bigqueue.NewMmapQueue(getTempDir(tempPath), bigqueue.SetMaxInMemArenas(3))
 	if err != nil {
 		return nil, fmt.Errorf("unable to init bigqueue :: %v", err)
@@ -267,7 +263,7 @@ func min(i, j pair) pair {
 	return j
 }
 
-func writeToFile(oq bigqueue.Queue, outputPath string) error {
+func writeToFile(oq *bigqueue.MmapQueue, outputPath string) error {
 	// write the final output to file
 	od, err := os.Create(outputPath)
 	if err != nil {
@@ -277,15 +273,11 @@ func writeToFile(oq bigqueue.Queue, outputPath string) error {
 
 	w := bufio.NewWriter(od)
 	for !oq.IsEmpty() {
-		v, err := oq.Peek()
+		v, err := oq.Dequeue()
 		if err != nil {
-			return fmt.Errorf("unable to peek from bigqueue :: %v", err)
-		}
-		w.WriteString(string(v) + "\n")
-
-		if err := oq.Dequeue(); err != nil {
 			return fmt.Errorf("unable to dequeue from bigqueue :: %v", err)
 		}
+		w.WriteString(string(v) + "\n")
 	}
 
 	return w.Flush()
