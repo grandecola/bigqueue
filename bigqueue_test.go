@@ -19,9 +19,9 @@ func init() {
 }
 
 func checkInMemArenaInvariant(t *testing.T, bq *MmapQueue) {
-	if bq.am.inMemArenas > bq.conf.maxInMemArenas {
+	if len(bq.am.arenas) > bq.conf.maxInMemArenas {
 		t.Fatalf("# of in memory arenas should not be more than %v, actual: %v",
-			bq.conf.maxInMemArenas, bq.am.inMemArenas)
+			bq.conf.maxInMemArenas, len(bq.am.arenas))
 	}
 }
 
