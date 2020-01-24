@@ -5,10 +5,7 @@
 # bigqueue
 
 `bigqueue` provides embedded, fast and persistent queue written in pure Go using
-memory mapped (`mmap`) files. `bigqueue` is currently **not** thread safe. Check
-out the roadmap for [v0.3.0](https://github.com/grandecola/bigqueue/milestone/4)
-for more details on progress on thread safety. To use `bigqueue` in parallel
-context, a **write** lock needs to be acquired (even for `Read` APIs).
+memory mapped (`mmap`) files. `bigqueue` is now *thread safe* as well.
 
 ## Installation
 ```
@@ -49,8 +46,7 @@ memory is above and beyond the memory used in buffers for copying data.
 
 Bigqueue allows to set periodic flush based on either elapsed time or number
 of mutate (enqueue/dequeue) operations. Flush syncs the in memory changes of all
-memory mapped files with disk. *This is a best effort flush*. Elapsed time and
-number of mutate operations are only checked upon an enqueue/dequeue.
+memory mapped files with disk. *This is a best effort flush*.
 
 This is how we can set these options:
 ```go

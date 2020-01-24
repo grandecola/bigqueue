@@ -3,6 +3,7 @@ package bigqueue
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -29,6 +30,11 @@ type MmapQueue struct {
 	dc        int64 // default consumer
 	mutOps    int64
 	lastFlush time.Time
+
+	lock  sync.Mutex // protects bigqueue
+	flush chan struct{}
+	quit  chan struct{}
+	wg    sync.WaitGroup
 }
 
 // NewMmapQueue constructs a new persistent queue.
@@ -79,17 +85,25 @@ func NewMmapQueue(dir string, opts ...Option) (*MmapQueue, error) {
 		return nil, fmt.Errorf("error in adding default consumer :: %w", err)
 	}
 
+	bq := &MmapQueue{
+		conf:  conf,
+		am:    am,
+		md:    md,
+		dc:    dc,
+		flush: make(chan struct{}, 100),
+		quit:  make(chan struct{}),
+	}
+	go bq.periodicFlush()
+
 	complete = true
-	return &MmapQueue{
-		conf: conf,
-		am:   am,
-		md:   md,
-		dc:   dc,
-	}, nil
+	return bq, nil
 }
 
 // NewConsumer creates a new consumer or finds an existing one with same name.
 func (q *MmapQueue) NewConsumer(name string) (*Consumer, error) {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+
 	base, err := q.md.getConsumer(name)
 	if err != nil {
 		return nil, err
@@ -105,6 +119,9 @@ func (q *MmapQueue) FromConsumer(name string, from *Consumer) (*Consumer, error)
 		return nil, ErrDifferentQueues
 	}
 
+	q.lock.Lock()
+	defer q.lock.Unlock()
+
 	base, err := q.md.getConsumer(name)
 	if err != nil {
 		return nil, err
@@ -119,6 +136,13 @@ func (q *MmapQueue) FromConsumer(name string, from *Consumer) (*Consumer, error)
 
 // Close will close metadata and arena manager.
 func (q *MmapQueue) Close() error {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+
+	// wait for background go routines to finish
+	close(q.quit)
+	q.wg.Wait()
+
 	var retErr error
 	if err := q.md.close(); err != nil {
 		retErr = err
@@ -133,6 +157,9 @@ func (q *MmapQueue) Close() error {
 
 // Flush syncs the in memory content of bigqueue to disk.
 func (q *MmapQueue) Flush() error {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+
 	if err := q.am.flush(); err != nil {
 		return err
 	}
@@ -146,20 +173,40 @@ func (q *MmapQueue) Flush() error {
 	return nil
 }
 
-func (q *MmapQueue) flushPeriodic() error {
-	enoughOps := false
-	if q.conf.flushMutOps > 0 {
-		enoughOps = q.mutOps >= q.conf.flushMutOps
+func (q *MmapQueue) incrMutOps() {
+	q.mutOps++
+	if q.conf.flushMutOps > 0 && q.mutOps >= q.conf.flushMutOps {
+		q.mutOps = 0
+		q.flush <- struct{}{}
+	}
+}
+
+// setupFlush sets up background go routine to periodically flush data.
+func (q *MmapQueue) periodicFlush() {
+	timer := &time.Timer{C: make(chan time.Time)}
+	if q.conf.flushPeriod != 0 {
+		timer = time.NewTimer(time.Duration(q.conf.flushPeriod))
 	}
 
-	enoughTime := false
-	if q.conf.flushPeriod > 0 {
-		enoughTime = time.Since(q.lastFlush) >= q.conf.flushPeriod
-	}
+	var drainFlag bool
+	for {
+		if timer != nil {
+			if !drainFlag && !timer.Stop() {
+				<-timer.C
+			}
 
-	if enoughOps || enoughTime {
-		return q.Flush()
-	}
+			timer.Reset(time.Duration(q.conf.flushPeriod))
+			drainFlag = false
+		}
 
-	return nil
+		select {
+		case <-q.quit:
+			return
+		case <-q.flush:
+			_ = q.Flush()
+		case <-timer.C:
+			drainFlag = true
+			_ = q.Flush()
+		}
+	}
 }

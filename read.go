@@ -16,6 +16,13 @@ func (q *MmapQueue) IsEmpty() bool {
 }
 
 func (q *MmapQueue) isEmpty(base int64) bool {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+
+	return q.isEmptyNoLock(base)
+}
+
+func (q *MmapQueue) isEmptyNoLock(base int64) bool {
 	headAid, headOffset := q.md.getConsumerHead(base)
 	tailAid, tailOffset := q.md.getTail()
 	return headAid == tailAid && headOffset == tailOffset
@@ -54,7 +61,10 @@ func (q *MmapQueue) dequeueString(base int64) (string, error) {
 // dequeue reads one element of the queue into given reader.
 // It takes care of reading the element that is spread across multiple arenas.
 func (q *MmapQueue) dequeueReader(r reader, base int64) error {
-	if q.isEmpty(base) {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+
+	if q.isEmptyNoLock(base) {
 		return ErrEmptyQueue
 	}
 
@@ -77,7 +87,7 @@ func (q *MmapQueue) dequeueReader(r reader, base int64) error {
 
 	// update head
 	q.md.putConsumerHead(base, aid, offset)
-	q.mutOps++
+	q.incrMutOps()
 
 	return nil
 }
