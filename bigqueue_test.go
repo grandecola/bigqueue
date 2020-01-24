@@ -1104,6 +1104,7 @@ func TestParallel(t *testing.T) {
 	// we have 11 API functions that we will call in parallel
 	// and let the race detector catch if there is a race condition
 	N := 1000
+	errChan := make(chan error, 30000)
 	var wg sync.WaitGroup
 	defer wg.Wait()
 
@@ -1124,7 +1125,8 @@ func TestParallel(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < N; i++ {
 			if err := bq.Flush(); err != nil {
-				t.Fatalf("error while Flush :: %v", err)
+				errChan <- fmt.Errorf("error while Flush :: %v", err)
+				return
 			}
 		}
 	}
@@ -1133,7 +1135,8 @@ func TestParallel(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < N; i++ {
 			if err := bq.Enqueue([]byte("elem")); err != nil {
-				t.Fatalf("error while Enqueue :: %v", err)
+				errChan <- fmt.Errorf("error while Enqueue :: %v", err)
+				return
 			}
 		}
 	}
@@ -1142,7 +1145,8 @@ func TestParallel(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < N; i++ {
 			if err := bq.EnqueueString("elem"); err != nil {
-				t.Fatalf("error while Enqueue :: %v", err)
+				errChan <- fmt.Errorf("error while Enqueue :: %v", err)
+				return
 			}
 		}
 	}
@@ -1153,9 +1157,11 @@ func TestParallel(t *testing.T) {
 			if elem, err := bq.Dequeue(); err == ErrEmptyQueue {
 				continue
 			} else if err != nil {
-				t.Fatalf("error while Dequeue :: %v", err)
+				errChan <- fmt.Errorf("error while Dequeue :: %v", err)
+				return
 			} else if !bytes.Equal(elem, []byte("elem")) {
-				t.Fatalf("invalid value, exp: elem, actual: %v", string(elem))
+				errChan <- fmt.Errorf("invalid value, exp: elem, actual: %v", string(elem))
+				return
 			}
 		}
 	}
@@ -1166,9 +1172,11 @@ func TestParallel(t *testing.T) {
 			if elem, err := bq.DequeueString(); err == ErrEmptyQueue {
 				continue
 			} else if err != nil {
-				t.Fatalf("error while Dequeue :: %v", err)
+				errChan <- fmt.Errorf("error while Dequeue :: %v", err)
+				return
 			} else if elem != "elem" {
-				t.Fatalf("invalid value, exp: elem, actual: %v", elem)
+				errChan <- fmt.Errorf("invalid value, exp: elem, actual: %v", elem)
+				return
 			}
 		}
 	}
@@ -1178,11 +1186,13 @@ func TestParallel(t *testing.T) {
 		for i := 0; i < N; i++ {
 			c, err := bq.NewConsumer("existing")
 			if err != nil {
-				t.Fatalf("error while NewConsumer :: %v", err)
+				errChan <- fmt.Errorf("error while NewConsumer :: %v", err)
+				return
 			}
 
 			if _, err := bq.FromConsumer("new"+strconv.Itoa(i), c); err != nil {
-				t.Fatalf("error while FromConsumer :: %v", err)
+				errChan <- fmt.Errorf("error while FromConsumer :: %v", err)
+				return
 			}
 		}
 	}
@@ -1210,9 +1220,11 @@ func TestParallel(t *testing.T) {
 			if elem, err := c.Dequeue(); err == ErrEmptyQueue {
 				continue
 			} else if err != nil {
-				t.Fatalf("error while Dequeue :: %v", err)
+				errChan <- fmt.Errorf("error while Dequeue :: %v", err)
+				return
 			} else if !bytes.Equal(elem, []byte("elem")) {
-				t.Fatalf("invalid value, exp: elem, actual: %v", string(elem))
+				errChan <- fmt.Errorf("invalid value, exp: elem, actual: %v", string(elem))
+				return
 			}
 		}
 	}
@@ -1223,9 +1235,11 @@ func TestParallel(t *testing.T) {
 			if elem, err := c.DequeueString(); err == ErrEmptyQueue {
 				continue
 			} else if err != nil {
-				t.Fatalf("error while Dequeue :: %v", err)
+				errChan <- fmt.Errorf("error while Dequeue :: %v", err)
+				return
 			} else if elem != "elem" {
-				t.Fatalf("invalid value, exp: elem, actual: %v", elem)
+				errChan <- fmt.Errorf("invalid value, exp: elem, actual: %v", elem)
+				return
 			}
 		}
 	}
@@ -1252,4 +1266,13 @@ func TestParallel(t *testing.T) {
 	go consumerDequeueStringFunc()
 	go consumerDequeueStringFunc()
 	wg.Wait()
+
+	fail := false
+	for err := range errChan {
+		t.Log(err)
+		fail = true
+	}
+	if fail {
+		t.FailNow()
+	}
 }
