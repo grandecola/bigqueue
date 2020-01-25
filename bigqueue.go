@@ -174,8 +174,12 @@ func (q *MmapQueue) Flush() error {
 }
 
 func (q *MmapQueue) incrMutOps() {
+	if q.conf.flushMutOps <= 0 {
+		return
+	}
+
 	q.mutOps++
-	if q.conf.flushMutOps > 0 && q.mutOps >= q.conf.flushMutOps {
+	if q.mutOps >= q.conf.flushMutOps {
 		select {
 		case q.drain <- struct{}{}:
 		default:
