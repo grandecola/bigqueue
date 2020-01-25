@@ -32,7 +32,7 @@ type MmapQueue struct {
 	lastFlush time.Time
 
 	lock  sync.Mutex // protects bigqueue
-	flush chan struct{}
+	drain chan struct{}
 	quit  chan struct{}
 	wg    sync.WaitGroup
 }
@@ -90,7 +90,7 @@ func NewMmapQueue(dir string, opts ...Option) (*MmapQueue, error) {
 		am:    am,
 		md:    md,
 		dc:    dc,
-		flush: make(chan struct{}, 100),
+		drain: make(chan struct{}, 1),
 		quit:  make(chan struct{}),
 	}
 	go bq.periodicFlush()
@@ -176,8 +176,10 @@ func (q *MmapQueue) Flush() error {
 func (q *MmapQueue) incrMutOps() {
 	q.mutOps++
 	if q.conf.flushMutOps > 0 && q.mutOps >= q.conf.flushMutOps {
-		q.mutOps = 0
-		q.flush <- struct{}{}
+		select {
+		case q.drain <- struct{}{}:
+		default:
+		}
 	}
 }
 
@@ -190,7 +192,7 @@ func (q *MmapQueue) periodicFlush() {
 
 	var drainFlag bool
 	for {
-		if timer != nil {
+		if q.conf.flushPeriod != 0 {
 			if !drainFlag && !timer.Stop() {
 				<-timer.C
 			}
@@ -202,7 +204,7 @@ func (q *MmapQueue) periodicFlush() {
 		select {
 		case <-q.quit:
 			return
-		case <-q.flush:
+		case <-q.drain:
 			_ = q.Flush()
 		case <-timer.C:
 			drainFlag = true

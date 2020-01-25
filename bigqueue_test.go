@@ -1103,9 +1103,9 @@ func TestParallel(t *testing.T) {
 
 	// we have 11 API functions that we will call in parallel
 	// and let the race detector catch if there is a race condition
-	N := 1000
+	N := 2000
 	errChan := make(chan error, 30000)
-	var wg sync.WaitGroup
+	var wg, rwg sync.WaitGroup
 	defer wg.Wait()
 
 	isEmptyFunc := func() {
@@ -1244,6 +1244,16 @@ func TestParallel(t *testing.T) {
 		}
 	}
 
+	fail := false
+	rwg.Add(1)
+	go func() {
+		rwg.Done()
+		for err := range errChan {
+			t.Log(err)
+			fail = true
+		}
+	}()
+
 	wg.Add(20)
 	go isEmptyFunc()
 	go isEmptyFunc()
@@ -1267,11 +1277,8 @@ func TestParallel(t *testing.T) {
 	go consumerDequeueStringFunc()
 	wg.Wait()
 
-	fail := false
-	for err := range errChan {
-		t.Log(err)
-		fail = true
-	}
+	close(errChan)
+	rwg.Wait()
 	if fail {
 		t.FailNow()
 	}
