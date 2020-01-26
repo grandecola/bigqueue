@@ -10,6 +10,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -1082,4 +1083,203 @@ func TestFlush(t *testing.T) {
 			t.Fatalf("error in closing bigqueue :: %v", err)
 		}
 	}()
+}
+
+func TestParallel(t *testing.T) {
+	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	bq, err := NewMmapQueue(testDir, SetArenaSize(8*1024),
+		SetPeriodicFlushDuration(time.Millisecond*10), SetPeriodicFlushOps(10))
+	if err != nil {
+		t.Fatalf("unable to create a bigqueue: %v", err)
+	}
+	defer func() {
+		if err := bq.Close(); err != nil {
+			t.Fatalf("error in closing bigqueue :: %v", err)
+		}
+	}()
+
+	// we have 11 API functions that we will call in parallel
+	// and let the race detector catch if there is a race condition
+	N := 2000
+	errChan := make(chan error, 30000)
+	var wg, rwg sync.WaitGroup
+	defer wg.Wait()
+
+	isEmptyFunc := func() {
+		defer wg.Done()
+		var emptyCount int64
+		var nonEmptyCount int64
+		for i := 0; i < N; i++ {
+			if bq.IsEmpty() {
+				emptyCount++
+			} else {
+				nonEmptyCount++
+			}
+		}
+	}
+
+	flushFunc := func() {
+		defer wg.Done()
+		for i := 0; i < N; i++ {
+			if err := bq.Flush(); err != nil {
+				errChan <- fmt.Errorf("error while Flush :: %v", err)
+				return
+			}
+		}
+	}
+
+	enqueueFunc := func() {
+		defer wg.Done()
+		for i := 0; i < N; i++ {
+			if err := bq.Enqueue([]byte("elem")); err != nil {
+				errChan <- fmt.Errorf("error while Enqueue :: %v", err)
+				return
+			}
+		}
+	}
+
+	enqueueStringFunc := func() {
+		defer wg.Done()
+		for i := 0; i < N; i++ {
+			if err := bq.EnqueueString("elem"); err != nil {
+				errChan <- fmt.Errorf("error while Enqueue :: %v", err)
+				return
+			}
+		}
+	}
+
+	dequeueFunc := func() {
+		defer wg.Done()
+		for i := 0; i < N; i++ {
+			if elem, err := bq.Dequeue(); err == ErrEmptyQueue {
+				continue
+			} else if err != nil {
+				errChan <- fmt.Errorf("error while Dequeue :: %v", err)
+				return
+			} else if !bytes.Equal(elem, []byte("elem")) {
+				errChan <- fmt.Errorf("invalid value, exp: elem, actual: %v", string(elem))
+				return
+			}
+		}
+	}
+
+	dequeueStringFunc := func() {
+		defer wg.Done()
+		for i := 0; i < N; i++ {
+			if elem, err := bq.DequeueString(); err == ErrEmptyQueue {
+				continue
+			} else if err != nil {
+				errChan <- fmt.Errorf("error while Dequeue :: %v", err)
+				return
+			} else if elem != "elem" {
+				errChan <- fmt.Errorf("invalid value, exp: elem, actual: %v", elem)
+				return
+			}
+		}
+	}
+
+	newConsumerFunc := func() {
+		defer wg.Done()
+		for i := 0; i < N; i++ {
+			c, err := bq.NewConsumer("existing")
+			if err != nil {
+				errChan <- fmt.Errorf("error while NewConsumer :: %v", err)
+				return
+			}
+
+			if _, err := bq.FromConsumer("new"+strconv.Itoa(i), c); err != nil {
+				errChan <- fmt.Errorf("error while FromConsumer :: %v", err)
+				return
+			}
+		}
+	}
+
+	c, err := bq.NewConsumer("existing")
+	if err != nil {
+		t.Fatalf("error while NewConsumer :: %v", err)
+	}
+	consumerIsEmptyFunc := func() {
+		defer wg.Done()
+		var emptyCount int64
+		var nonEmptyCount int64
+		for i := 0; i < N; i++ {
+			if c.IsEmpty() {
+				emptyCount++
+			} else {
+				nonEmptyCount++
+			}
+		}
+	}
+
+	consumerDequeueFunc := func() {
+		defer wg.Done()
+		for i := 0; i < N; i++ {
+			if elem, err := c.Dequeue(); err == ErrEmptyQueue {
+				continue
+			} else if err != nil {
+				errChan <- fmt.Errorf("error while Dequeue :: %v", err)
+				return
+			} else if !bytes.Equal(elem, []byte("elem")) {
+				errChan <- fmt.Errorf("invalid value, exp: elem, actual: %v", string(elem))
+				return
+			}
+		}
+	}
+
+	consumerDequeueStringFunc := func() {
+		defer wg.Done()
+		for i := 0; i < N; i++ {
+			if elem, err := c.DequeueString(); err == ErrEmptyQueue {
+				continue
+			} else if err != nil {
+				errChan <- fmt.Errorf("error while Dequeue :: %v", err)
+				return
+			} else if elem != "elem" {
+				errChan <- fmt.Errorf("invalid value, exp: elem, actual: %v", elem)
+				return
+			}
+		}
+	}
+
+	fail := false
+	rwg.Add(1)
+	go func() {
+		rwg.Done()
+		for err := range errChan {
+			t.Log(err)
+			fail = true
+		}
+	}()
+
+	wg.Add(20)
+	go isEmptyFunc()
+	go isEmptyFunc()
+	go flushFunc()
+	go flushFunc()
+	go enqueueFunc()
+	go enqueueFunc()
+	go enqueueStringFunc()
+	go enqueueStringFunc()
+	go dequeueFunc()
+	go dequeueFunc()
+	go dequeueStringFunc()
+	go dequeueStringFunc()
+	go newConsumerFunc()
+	go newConsumerFunc()
+	go consumerIsEmptyFunc()
+	go consumerIsEmptyFunc()
+	go consumerDequeueFunc()
+	go consumerDequeueFunc()
+	go consumerDequeueStringFunc()
+	go consumerDequeueStringFunc()
+	wg.Wait()
+
+	close(errChan)
+	rwg.Wait()
+	if fail {
+		t.FailNow()
+	}
 }

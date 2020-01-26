@@ -15,9 +15,11 @@ func (q *MmapQueue) EnqueueString(message string) error {
 // fit into one arena. This function takes care of spreading the data across
 // multiple arenas when necessary.
 func (q *MmapQueue) enqueue(w writer) error {
-	aid, offset := q.md.getTail()
+	q.lock.Lock()
+	defer q.lock.Unlock()
 
 	var err error
+	aid, offset := q.md.getTail()
 	aid, offset, err = q.writeLength(aid, offset, uint64(w.len()))
 	if err != nil {
 		return err
@@ -29,9 +31,9 @@ func (q *MmapQueue) enqueue(w writer) error {
 	}
 
 	q.md.putTail(aid, offset)
-	q.mutOps++
+	q.incrMutOps()
 
-	return q.flushPeriodic()
+	return nil
 }
 
 // writeLength writes the length into tail arena. Note that length is
