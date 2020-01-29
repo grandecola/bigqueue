@@ -41,7 +41,6 @@ type MmapQueue struct {
 func NewMmapQueue(dir string, opts ...Option) (*MmapQueue, error) {
 	complete := false
 
-	// setup configuration
 	conf := newConfig()
 	for _, opt := range opts {
 		if err := opt(conf); err != nil {
@@ -49,7 +48,6 @@ func NewMmapQueue(dir string, opts ...Option) (*MmapQueue, error) {
 		}
 	}
 
-	// create queue metadata
 	md, err := newMetadata(dir, conf.arenaSize)
 	if err != nil {
 		return nil, err
@@ -93,6 +91,7 @@ func NewMmapQueue(dir string, opts ...Option) (*MmapQueue, error) {
 		drain: make(chan struct{}, 1),
 		quit:  make(chan struct{}),
 	}
+	bq.wg.Add(1)
 	go bq.periodicFlush()
 
 	complete = true
@@ -189,8 +188,13 @@ func (q *MmapQueue) incrMutOps() {
 
 // setupFlush sets up background go routine to periodically flush data.
 func (q *MmapQueue) periodicFlush() {
+	defer q.wg.Done()
+	if q.conf.flushPeriod <= 0 && q.conf.flushMutOps <= 0 {
+		return
+	}
+
 	timer := &time.Timer{C: make(chan time.Time)}
-	if q.conf.flushPeriod != 0 {
+	if q.conf.flushPeriod > 0 {
 		timer = time.NewTimer(time.Duration(q.conf.flushPeriod))
 	}
 

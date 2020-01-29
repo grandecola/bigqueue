@@ -99,7 +99,6 @@ func SetPeriodicFlushOps(flushMutOps int64) Option {
 // For durability this value should be low.
 // For performance this value should be high.
 func SetPeriodicFlushDuration(flushPeriod time.Duration) Option {
-	// TODO: in future we should do a timely flush from a background scheduled goroutine.
 	return func(c *bqConfig) error {
 		c.flushPeriod = flushPeriod
 		return nil
