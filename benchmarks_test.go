@@ -135,8 +135,8 @@ func BenchmarkEnqueueString(b *testing.B) {
 			dir := path.Join(os.TempDir(), "testdir")
 			createBenchDir(b, dir)
 
-			bq, err := NewMmapQueue(dir, SetArenaSize(param.arenaSize),
-				SetMaxInMemArenas(param.maxInMemArenaCount))
+			bq, err := NewMmapQueue(dir, SetArenaSize(param.arenaSize), SetPeriodicFlushOps(0),
+				SetMaxInMemArenas(param.maxInMemArenaCount), SetPeriodicFlushDuration(0))
 			if err != nil {
 				b.Fatalf("unable to create bigqueue: %v", err)
 			}
