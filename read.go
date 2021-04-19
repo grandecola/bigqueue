@@ -34,6 +34,9 @@ func (q *MmapQueue) Dequeue() ([]byte, error) {
 }
 
 func (q *MmapQueue) dequeue(base int64) ([]byte, error) {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+
 	if err := q.dequeueReader(&q.bytesReader, base); err != nil {
 		q.bytesReader.b = nil
 		return nil, err
@@ -50,6 +53,9 @@ func (q *MmapQueue) DequeueString() (string, error) {
 }
 
 func (q *MmapQueue) dequeueString(base int64) (string, error) {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+
 	if err := q.dequeueReader(&q.stringReader, base); err != nil {
 		q.stringReader.sb.Reset()
 		return "", err
@@ -62,9 +68,6 @@ func (q *MmapQueue) dequeueString(base int64) (string, error) {
 // dequeue reads one element of the queue into given reader.
 // It takes care of reading the element that is spread across multiple arenas.
 func (q *MmapQueue) dequeueReader(r reader, base int64) error {
-	q.lock.Lock()
-	defer q.lock.Unlock()
-
 	if q.isEmptyNoLock(base) {
 		return ErrEmptyQueue
 	}
