@@ -35,6 +35,7 @@ func (q *MmapQueue) Dequeue() ([]byte, error) {
 
 func (q *MmapQueue) dequeue(base int64) ([]byte, error) {
 	if err := q.dequeueReader(&q.bytesReader, base); err != nil {
+		q.bytesReader.b = nil
 		return nil, err
 	}
 	r := q.bytesReader.b
@@ -50,6 +51,7 @@ func (q *MmapQueue) DequeueString() (string, error) {
 
 func (q *MmapQueue) dequeueString(base int64) (string, error) {
 	if err := q.dequeueReader(&q.stringReader, base); err != nil {
+		q.stringReader.sb.Reset()
 		return "", err
 	}
 	r := q.stringReader.sb.String()
