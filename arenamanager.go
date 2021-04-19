@@ -2,7 +2,6 @@ package bigqueue
 
 import (
 	"fmt"
-	"path"
 	"strconv"
 	"syscall"
 
