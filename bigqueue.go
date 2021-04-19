@@ -36,7 +36,7 @@ type MmapQueue struct {
 	quit  chan struct{}
 	wg    sync.WaitGroup
 
-	bytesReader bytesReader
+	bytesReader  bytesReader
 	stringReader stringReader
 }
 
