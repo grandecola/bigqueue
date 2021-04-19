@@ -24,8 +24,6 @@ var (
 
 // MmapQueue implements Queue interface.
 type MmapQueue struct {
-	bytesReader
-	stringReader
 	conf      *bqConfig
 	am        *arenaManager
 	md        *metadata
@@ -37,6 +35,9 @@ type MmapQueue struct {
 	drain chan struct{}
 	quit  chan struct{}
 	wg    sync.WaitGroup
+
+	bytesReader bytesReader
+	stringReader stringReader
 }
 
 // NewMmapQueue constructs a new persistent queue.
