@@ -38,6 +38,8 @@ type MmapQueue struct {
 
 	bytesReader  bytesReader
 	stringReader stringReader
+	bytesWriter  bytesWriter
+	stringWriter stringWriter
 }
 
 // NewMmapQueue constructs a new persistent queue.
