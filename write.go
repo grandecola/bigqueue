@@ -2,12 +2,24 @@ package bigqueue
 
 // Enqueue adds a new slice of byte element to the tail of the queue.
 func (q *MmapQueue) Enqueue(message []byte) error {
-	return q.enqueue(&bytesWriter{b: message})
+	q.lock.Lock()
+	defer q.lock.Unlock()
+
+	q.bytesWriter.b = message
+	err := q.enqueue(&q.bytesWriter)
+	q.bytesWriter.b = nil
+	return err
 }
 
 // EnqueueString adds a new string element to the tail of the queue.
 func (q *MmapQueue) EnqueueString(message string) error {
-	return q.enqueue(&stringWriter{s: message})
+	q.lock.Lock()
+	defer q.lock.Unlock()
+
+	q.stringWriter.s = message
+	err := q.enqueue(&q.stringWriter)
+	q.stringWriter.s = ""
+	return err
 }
 
 // enqueue writes the data hold by the given writer. It first writes the length
@@ -15,9 +27,6 @@ func (q *MmapQueue) EnqueueString(message string) error {
 // fit into one arena. This function takes care of spreading the data across
 // multiple arenas when necessary.
 func (q *MmapQueue) enqueue(w writer) error {
-	q.lock.Lock()
-	defer q.lock.Unlock()
-
 	var err error
 	aid, offset := q.md.getTail()
 	aid, offset, err = q.writeLength(aid, offset, uint64(w.len()))
