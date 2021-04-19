@@ -35,12 +35,12 @@ func (q *MmapQueue) Dequeue() ([]byte, error) {
 }
 
 func (q *MmapQueue) dequeue(base int64) ([]byte, error) {
-	br := &bytesReader{}
-	if err := q.dequeueReader(br, base); err != nil {
+	if err := q.dequeueReader(&q.bytesReader, base); err != nil {
 		return nil, err
 	}
-
-	return br.b, nil
+	r := q.bytesReader.b
+	q.bytesReader.b = nil
+	return r, nil
 }
 
 // DequeueString removes a string element from the queue and returns it.
@@ -50,12 +50,12 @@ func (q *MmapQueue) DequeueString() (string, error) {
 }
 
 func (q *MmapQueue) dequeueString(base int64) (string, error) {
-	sr := &stringReader{sb: &strings.Builder{}}
-	if err := q.dequeueReader(sr, base); err != nil {
+	if err := q.dequeueReader(&q.stringReader, base); err != nil {
 		return "", err
 	}
-
-	return sr.sb.String(), nil
+	r := q.stringReader.sb.String()
+	q.stringReader.sb.Reset()
+	return r, nil
 }
 
 // dequeue reads one element of the queue into given reader.
