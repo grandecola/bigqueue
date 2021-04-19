@@ -45,7 +45,7 @@ func (br *bytesReader) readFrom(aa *mmap.File, offset, index int) int {
 
 // stringReader holds a string builder to hold the data read from arena(s).
 type stringReader struct {
-	sb *strings.Builder
+	sb strings.Builder
 }
 
 // grow expands the capacity of the string builder by n bytes.
@@ -55,5 +55,5 @@ func (sr *stringReader) grow(n int) {
 
 // readFrom reads data from arena starting at offset and stores it at provided index.
 func (sr *stringReader) readFrom(aa *mmap.File, offset, index int) int {
-	return aa.ReadStringAt(sr.sb, int64(offset))
+	return aa.ReadStringAt(&sr.sb, int64(offset))
 }
