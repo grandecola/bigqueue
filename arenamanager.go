@@ -2,6 +2,7 @@ package bigqueue
 
 import (
 	"fmt"
+	"path"
 	"strconv"
 	"syscall"
 
@@ -31,7 +32,7 @@ func newArenaManager(dir string, conf *bqConfig, md *metadata) (*arenaManager, e
 	numArenas := tailAid + 1 - headAid
 	arenas := make([]*mmap.File, numArenas)
 	am := &arenaManager{
-		dir:     dir,
+		dir:     path.Clean(dir),
 		conf:    conf,
 		md:      md,
 		baseAid: headAid,
