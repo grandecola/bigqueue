@@ -2,7 +2,6 @@ package bigqueue
 
 import (
 	"errors"
-	"strings"
 )
 
 var (
