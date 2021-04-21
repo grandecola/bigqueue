@@ -21,7 +21,7 @@ type arenaManager struct {
 	baseAid   int
 	arenas    []*mmap.File
 	inMem     int
-	filePath  []byte
+	fullPath  []byte
 }
 
 // newArenaManager returns a pointer to new arenaManager.
@@ -116,11 +116,11 @@ func (m *arenaManager) loadArena(aid int) error {
 		return nil
 	}
 
-	m.filePath = append(m.filePath[:0], m.dir...)
-	m.filePath = append(m.filePath, '/')
-	m.filePath = strconv.AppendInt(m.filePath, int64(aid), 10)
-	m.filePath = append(m.filePath, cArenaFileSuffix...)
-	aa, err := newArena(string(m.filePath), m.conf.arenaSize)
+	m.fullPath = append(m.fullPath[:0], m.dir...)
+	m.fullPath = append(m.fullPath, '/')
+	m.fullPath = strconv.AppendInt(m.fullPath, int64(aid), 10)
+	m.fullPath = append(m.fullPath, cArenaFileSuffix...)
+	aa, err := newArena(string(m.fullPath), m.conf.arenaSize)
 	if err != nil {
 		return err
 	}
