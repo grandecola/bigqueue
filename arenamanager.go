@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	cArenaFilePrefix = "_arena.dat"
+	cArenaFileSuffix = "_arena.dat"
 )
 
 // arenaManager manages all the arenas for a bigqueue
@@ -119,7 +119,7 @@ func (m *arenaManager) loadArena(aid int) error {
 	m.filePath = append(m.filePath[:0], m.dir...)
 	m.filePath = append(m.filePath, '/')
 	m.filePath = strconv.AppendInt(m.filePath, int64(aid), 10)
-	m.filePath = append(m.filePath, cArenaFilePrefix...)
+	m.filePath = append(m.filePath, cArenaFileSuffix...)
 	aa, err := newArena(string(m.filePath), m.conf.arenaSize)
 	if err != nil {
 		return err
