@@ -5,9 +5,9 @@ func (q *MmapQueue) Enqueue(message []byte) error {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
-	q.bytesWriter.b = message
-	err := q.enqueue(&q.bytesWriter)
-	q.bytesWriter.b = nil
+	q.bw.b = message
+	err := q.enqueue(&q.bw)
+	q.bw.b = nil
 	return err
 }
 
@@ -16,9 +16,9 @@ func (q *MmapQueue) EnqueueString(message string) error {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
-	q.stringWriter.s = message
-	err := q.enqueue(&q.stringWriter)
-	q.stringWriter.s = ""
+	q.sw.s = message
+	err := q.enqueue(&q.sw)
+	q.sw.s = ""
 	return err
 }
 
