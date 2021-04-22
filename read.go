@@ -37,12 +37,12 @@ func (q *MmapQueue) dequeue(base int64) ([]byte, error) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
-	if err := q.dequeueReader(&q.bytesReader, base); err != nil {
-		q.bytesReader.b = nil
+	if err := q.dequeueReader(&q.br, base); err != nil {
+		q.br.b = nil
 		return nil, err
 	}
-	r := q.bytesReader.b
-	q.bytesReader.b = nil
+	r := q.br.b
+	q.br.b = nil
 	return r, nil
 }
 
@@ -56,12 +56,12 @@ func (q *MmapQueue) dequeueString(base int64) (string, error) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
-	if err := q.dequeueReader(&q.stringReader, base); err != nil {
-		q.stringReader.sb.Reset()
+	if err := q.dequeueReader(&q.sr, base); err != nil {
+		q.sr.sb.Reset()
 		return "", err
 	}
-	r := q.stringReader.sb.String()
-	q.stringReader.sb.Reset()
+	r := q.sr.sb.String()
+	q.sr.sb.Reset()
 	return r, nil
 }
 
