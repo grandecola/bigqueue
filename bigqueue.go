@@ -135,12 +135,14 @@ func (q *MmapQueue) FromConsumer(name string, from *Consumer) (*Consumer, error)
 
 // Close will close metadata and arena manager.
 func (q *MmapQueue) Close() error {
-	// wait for background go routines to finish
-	// we need to acquire lock afterwards so that we avoid race between
-	// periodic flush goroutine and Close() being called. A possible
-	// lock cycle is here:
-	//  Close() -> periodic flush goroutine to stop -> 
-	//        -> Acquiring Lock -> Close() to release lock
+	// wait for background go routines to finish.
+	// we need to acquire lock afterwards so that we avoid a livelock
+	// between periodic flush goroutine and Close() function.
+	// A possible lock cycle is here:
+	//        Close() after it has acquired the lock ->
+	//     -> Close() waiting for periodic flush goroutine to stop -> 
+	//     -> Periodic flush goroutine is trying to acquire the lock ->
+	//     -> Close() to release the lock
 	close(q.quit)
 	q.wg.Wait()
 
