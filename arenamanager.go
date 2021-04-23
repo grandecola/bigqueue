@@ -10,17 +10,18 @@ import (
 )
 
 const (
-	cArenaFilePrefix = "_arena.dat"
+	cArenaFileSuffix = "_arena.dat"
 )
 
 // arenaManager manages all the arenas for a bigqueue
 type arenaManager struct {
-	dir     string
-	conf    *bqConfig
-	md      *metadata
-	baseAid int
-	arenas  []*mmap.File
-	inMem   int
+	dir       string
+	conf      *bqConfig
+	md        *metadata
+	baseAid   int
+	arenas    []*mmap.File
+	inMem     int
+	fullPath  []byte
 }
 
 // newArenaManager returns a pointer to new arenaManager.
@@ -31,7 +32,7 @@ func newArenaManager(dir string, conf *bqConfig, md *metadata) (*arenaManager, e
 	numArenas := tailAid + 1 - headAid
 	arenas := make([]*mmap.File, numArenas)
 	am := &arenaManager{
-		dir:     dir,
+		dir:     path.Clean(dir),
 		conf:    conf,
 		md:      md,
 		baseAid: headAid,
@@ -115,9 +116,11 @@ func (m *arenaManager) loadArena(aid int) error {
 		return nil
 	}
 
-	fileName := strconv.Itoa(aid) + cArenaFilePrefix
-	filePath := path.Join(m.dir, fileName)
-	aa, err := newArena(filePath, m.conf.arenaSize)
+	m.fullPath = append(m.fullPath[:0], m.dir...)
+	m.fullPath = append(m.fullPath, '/')
+	m.fullPath = strconv.AppendInt(m.fullPath, int64(aid), 10)
+	m.fullPath = append(m.fullPath, cArenaFileSuffix...)
+	aa, err := newArena(string(m.fullPath), m.conf.arenaSize)
 	if err != nil {
 		return err
 	}
