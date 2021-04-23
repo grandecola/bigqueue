@@ -35,6 +35,11 @@ type MmapQueue struct {
 	drain chan struct{}
 	quit  chan struct{}
 	wg    sync.WaitGroup
+
+	br bytesReader
+	sr stringReader
+	bw bytesWriter
+	sw stringWriter
 }
 
 // NewMmapQueue constructs a new persistent queue.

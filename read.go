@@ -2,7 +2,6 @@ package bigqueue
 
 import (
 	"errors"
-	"strings"
 )
 
 var (
@@ -35,12 +34,16 @@ func (q *MmapQueue) Dequeue() ([]byte, error) {
 }
 
 func (q *MmapQueue) dequeue(base int64) ([]byte, error) {
-	br := &bytesReader{}
-	if err := q.dequeueReader(br, base); err != nil {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+
+	if err := q.dequeueReader(&q.br, base); err != nil {
+		q.br.b = nil
 		return nil, err
 	}
-
-	return br.b, nil
+	r := q.br.b
+	q.br.b = nil
+	return r, nil
 }
 
 // DequeueString removes a string element from the queue and returns it.
@@ -50,20 +53,21 @@ func (q *MmapQueue) DequeueString() (string, error) {
 }
 
 func (q *MmapQueue) dequeueString(base int64) (string, error) {
-	sr := &stringReader{sb: &strings.Builder{}}
-	if err := q.dequeueReader(sr, base); err != nil {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+
+	if err := q.dequeueReader(&q.sr, base); err != nil {
+		q.sr.sb.Reset()
 		return "", err
 	}
-
-	return sr.sb.String(), nil
+	r := q.sr.sb.String()
+	q.sr.sb.Reset()
+	return r, nil
 }
 
 // dequeue reads one element of the queue into given reader.
 // It takes care of reading the element that is spread across multiple arenas.
 func (q *MmapQueue) dequeueReader(r reader, base int64) error {
-	q.lock.Lock()
-	defer q.lock.Unlock()
-
 	if q.isEmptyNoLock(base) {
 		return ErrEmptyQueue
 	}
