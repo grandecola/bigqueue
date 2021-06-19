@@ -113,11 +113,12 @@ elem, err := consumer.DequeueString()
 
 ### Setup
 
+```
 goos: linux
 goarch: amd64
-pkg: github.com/grandecola/bigqueue
 cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
 Go version: 1.16
+```
 
 ### NewMmapQueue
 ```go
