@@ -141,7 +141,7 @@ func (q *MmapQueue) readBytes(r reader, aid, offset, length int) (int, int, erro
 		}
 
 		// check if all bytes are read
-		if counter == length {
+		if counter >= length {
 			break
 		}
 	}

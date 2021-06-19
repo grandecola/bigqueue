@@ -19,9 +19,9 @@
 // bigqueue also allows setting up the maximum possible memory that it
 // can use. By default, the maximum memory is set to [3 x Arena Size].
 //
-//  bq, err := bigqueue.NewQueue("path/to/queue", bigqueue.SetArenaSize(4*1024),
-// 	     bigqueue.SetMaxInMemArenas(10))
-//  defer bq.Close()
+//	 bq, err := bigqueue.NewQueue("path/to/queue", bigqueue.SetArenaSize(4*1024),
+//		     bigqueue.SetMaxInMemArenas(10))
+//	 defer bq.Close()
 //
 // In this case, bigqueue will never allocate more memory than `4KB*10=40KB`. This
 // memory is above and beyond the memory used in buffers for copying data.
@@ -33,11 +33,11 @@
 //
 // This is how we can set these options:
 //
-//  bq, err := bigqueue.NewQueue("path/to/queue", bigqueue.SetPeriodicFlushOps(2))
+//	bq, err := bigqueue.NewQueue("path/to/queue", bigqueue.SetPeriodicFlushOps(2))
 //
 // In this case, a flush is done after every two mutate operations.
 //
-//  bq, err := bigqueue.NewQueue("path/to/queue", bigqueue.SetPeriodicFlushDuration(time.Minute))
+//	bq, err := bigqueue.NewQueue("path/to/queue", bigqueue.SetPeriodicFlushDuration(time.Minute))
 //
 // In this case, a flush is done after one minute elapses and an Enqueue/Dequeue is called.
 //
@@ -47,7 +47,7 @@
 //
 // bigqueue allows writing string data directly, avoiding conversion to `[]byte`:
 //
-//  err := bq.EnqueueString("elem")   // size = 2
+//	err := bq.EnqueueString("elem")   // size = 2
 //
 // Read from bigqueue:
 //
@@ -55,7 +55,7 @@
 //
 // we can also read string data from bigqueue:
 //
-//  elem, err := bq.DequeueString()
+//	elem, err := bq.DequeueString()
 //
 // Check whether bigqueue has non zero elements:
 //
@@ -68,15 +68,17 @@
 //
 // We can create a new consumer as follows. The offsets of a new consumer are set at the
 // start of the queue wherever the first non-deleted element is.
-//  consumer, err := bq.NewConsumer("consumer")
+//
+//	consumer, err := bq.NewConsumer("consumer")
 //
 // We can also copy an existing consumer. This will create a consumer that will have the
 // same offsets into the queue as that of the existing consumer.
-//  copyConsumer, err := bq.FromConsumer("copyConsumer", consumer)
+//
+//	copyConsumer, err := bq.FromConsumer("copyConsumer", consumer)
 //
 // Now, read operations can be performed on the consumer:
-//  isEmpty := consumer.IsEmpty()
-//  elem, err := consumer.Dequeue()
-//  elem, err := consumer.DequeueString()
 //
+//	isEmpty := consumer.IsEmpty()
+//	elem, err := consumer.Dequeue()
+//	elem, err := consumer.DequeueString()
 package bigqueue

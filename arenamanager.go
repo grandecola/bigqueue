@@ -15,13 +15,13 @@ const (
 
 // arenaManager manages all the arenas for a bigqueue
 type arenaManager struct {
-	dir       string
-	conf      *bqConfig
-	md        *metadata
-	baseAid   int
-	arenas    []*mmap.File
-	inMem     int
-	fullPath  []byte
+	dir      string
+	conf     *bqConfig
+	md       *metadata
+	baseAid  int
+	arenas   []*mmap.File
+	inMem    int
+	fullPath []byte
 }
 
 // newArenaManager returns a pointer to new arenaManager.

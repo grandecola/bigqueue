@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -10,7 +11,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 const (
@@ -21,7 +21,7 @@ const (
 func main() {
 	var numDataElements, maxMemSortSize int
 	var inputPath, tempPath, outputPath string
-	flag.IntVar(&numDataElements, "num", 1000, "# elements to generate & sort")
+	flag.IntVar(&numDataElements, "num", 10000, "# elements to generate & sort")
 	flag.IntVar(&maxMemSortSize, "nummem", 100, "# elements to sort in mem")
 	flag.StringVar(&inputPath, "i", "input.dat", "input file (overwritten)")
 	flag.StringVar(&tempPath, "t", "bq", "path to write intermediate data")
@@ -59,11 +59,12 @@ func generateData(size, maxRandomNum int, dataFilePath string) error {
 	writer := bufio.NewWriter(fd)
 
 	// generate random numbers and write to file
-	rand.Seed(time.Now().UnixNano())
-	for i := 0; i < size; i++ {
+	for range size {
 		num := (rand.Int() % (2 * maxRandomNum)) - maxRandomNum
 		str := strconv.Itoa(num) + "\n"
-		writer.WriteString(str)
+		if _, err := writer.WriteString(str); err != nil {
+			return fmt.Errorf("error in writing to file :: %v", err)
+		}
 	}
 
 	return writer.Flush()
@@ -100,7 +101,7 @@ func validateSort(outputPath string) error {
 		if firstIter {
 			firstIter = false
 		} else if prevNum > num {
-			return fmt.Errorf("incorrect sort")
+			return errors.New("incorrect sort")
 		}
 
 		prevNum = num

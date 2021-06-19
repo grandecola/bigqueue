@@ -63,7 +63,8 @@ func SetArenaSize(arenaSize int) Option {
 // arenas reside in memory and Operating System takes care of memory by paging
 // in and out the pages from disk. A recommended value of maximum arenas that
 // should be in memory should be chosen such that:
-//    maxInMemArenas > (# of consumers) * 2 + 1
+//
+//	maxInMemArenas > (# of consumers) * 2 + 1
 func SetMaxInMemArenas(maxInMemArenas int) Option {
 	return func(c *bqConfig) error {
 		if maxInMemArenas != 0 && maxInMemArenas < cMinMaxInMemArenas {

@@ -28,15 +28,15 @@ func main() {
 		panic("queue cannot be empty")
 	}
 
-	if elem, err := bq.Dequeue(); err != nil {
+	elem, err := bq.Dequeue()
+	if err != nil {
 		panic(err)
-	} else {
-		fmt.Println("expected: elem, dequeued:", string(elem))
 	}
+	fmt.Println("expected: elem, dequeued:", string(elem))
 
-	if elem2, err := bq.DequeueString(); err != nil {
+	elem2, err := bq.DequeueString()
+	if err != nil {
 		panic(err)
-	} else {
-		fmt.Println("expected: elem2, dequeued:", elem2)
 	}
+	fmt.Println("expected: elem2, dequeued:", elem2)
 }
