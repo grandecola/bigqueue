@@ -769,7 +769,7 @@ func TestReadWriteString(t *testing.T) {
 
 	if poppedMsg, err := bq.DequeueString(); err != nil {
 		t.Fatalf("unable to dequeue :: %v", err)
-	} else if "" != poppedMsg {
+	} else if poppedMsg != "" {
 		t.Fatalf("unequal messages, eq: <>, dq: %s", poppedMsg)
 	}
 
