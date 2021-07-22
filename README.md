@@ -86,7 +86,7 @@ isEmpty := bq.IsEmpty()
 
 ### Advanced API
 bigqueue allows reading data from bigqueue using consumers similar to Kafka. This allows
-multiple consumers from reading data at different offsets (not in thread safe manner yet).
+multiple consumers from reading data at different offsets.
 The offsets of each consumer are persisted on disk and can be retrieved by creating a
 consumer with the same name. Data will be read from the same offset where it was left off.
 
