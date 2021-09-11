@@ -17,7 +17,13 @@ func (c *Consumer) Dequeue() ([]byte, error) {
 	return c.mq.dequeue(c.base)
 }
 
+// DequeueAppend removes an element from the queue and appends it to byte slice.
+func (c *Consumer) DequeueAppend(data []byte) ([]byte, error) {
+	return c.mq.dequeueAppend(data, c.base)
+}
+
 // DequeueString removes a string element from the queue and returns it.
 func (c *Consumer) DequeueString() (string, error) {
-	return c.mq.dequeueString(c.base)
+	m, err := c.Dequeue()
+	return b2s(m), err
 }

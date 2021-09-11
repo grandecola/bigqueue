@@ -196,6 +196,44 @@ func BenchmarkDequeue(b *testing.B) {
 	}
 }
 
+func BenchmarkDequeueAppend(b *testing.B) {
+	for _, param := range getBenchParams() {
+		b.Run(fmt.Sprintf("ArenaSize-%s/MessageSize-%s/MaxMem-%s", param.arenaSizeString,
+			param.messageSizeString, param.maxInMemArenaString), func(b *testing.B) {
+
+			dir := path.Join(os.TempDir(), "testdir")
+			createBenchDir(b, dir)
+
+			bq, err := NewMmapQueue(dir, SetArenaSize(param.arenaSize), SetPeriodicFlushDuration(0),
+				SetMaxInMemArenas(param.maxInMemArenaCount), SetPeriodicFlushOps(0))
+			if err != nil {
+				b.Fatalf("unable to create bigqueue: %v", err)
+			}
+
+			for i := 0; i < b.N; i++ {
+				if err := bq.Enqueue(param.message); err != nil {
+					b.Fatalf("unable to enqueue: %v", err)
+				}
+			}
+
+			b.ReportAllocs()
+			b.ResetTimer()
+			var data []byte
+			for i := 0; i < b.N; i++ {
+				if data, err = bq.DequeueAppend(data[:0]); err != nil {
+					b.Fatalf("unable to dequeue: %v", err)
+				}
+			}
+
+			b.StopTimer()
+			if err := bq.Close(); err != nil {
+				b.Fatalf("unable to close bq: %v", err)
+			}
+			removeBenchDir(b, dir)
+		})
+	}
+}
+
 func BenchmarkDequeueString(b *testing.B) {
 	for _, param := range getBenchParams() {
 		b.Run(fmt.Sprintf("ArenaSize-%s/MessageSize-%s/MaxMem-%s", param.arenaSizeString,

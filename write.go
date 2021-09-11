@@ -5,31 +5,13 @@ func (q *MmapQueue) Enqueue(message []byte) error {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
-	q.bw.b = message
-	err := q.enqueue(&q.bw)
-	q.bw.b = nil
-	return err
+	return q.enqueueBytes(message)
 }
 
-// EnqueueString adds a new string element to the tail of the queue.
-func (q *MmapQueue) EnqueueString(message string) error {
-	q.lock.Lock()
-	defer q.lock.Unlock()
-
-	q.sw.s = message
-	err := q.enqueue(&q.sw)
-	q.sw.s = ""
-	return err
-}
-
-// enqueue writes the data hold by the given writer. It first writes the length
-// of the data, then the data itself. It is possible that the whole data may not
-// fit into one arena. This function takes care of spreading the data across
-// multiple arenas when necessary.
-func (q *MmapQueue) enqueue(w writer) error {
+func (q *MmapQueue) enqueueBytes(w []byte) error {
 	var err error
 	aid, offset := q.md.getTail()
-	aid, offset, err = q.writeLength(aid, offset, uint64(w.len()))
+	aid, offset, err = q.writeLength(aid, offset, uint64(len(w)))
 	if err != nil {
 		return err
 	}
@@ -41,8 +23,12 @@ func (q *MmapQueue) enqueue(w writer) error {
 
 	q.md.putTail(aid, offset)
 	q.incrMutOps()
+	return err
+}
 
-	return nil
+// EnqueueString adds a new string element to the tail of the queue.
+func (q *MmapQueue) EnqueueString(message string) error {
+	return q.Enqueue(s2b(message))
 }
 
 // writeLength writes the length into tail arena. Note that length is
@@ -67,8 +53,8 @@ func (q *MmapQueue) writeLength(aid, offset int, length uint64) (int, int, error
 }
 
 // writeBytes writes byteSlice in arena(s) with aid starting at offset.
-func (q *MmapQueue) writeBytes(w writer, aid, offset int) (int, int, error) {
-	length := w.len()
+func (q *MmapQueue) writeBytes(w []byte, aid, offset int) (int, int, error) {
+	length := len(w)
 	counter := 0
 	for {
 		aa, err := q.am.getArena(aid)
@@ -76,7 +62,7 @@ func (q *MmapQueue) writeBytes(w writer, aid, offset int) (int, int, error) {
 			return 0, 0, err
 		}
 
-		bytesWritten := w.writeTo(aa, offset, counter)
+		bytesWritten, _ := aa.WriteAt(w[counter:], int64(offset))
 		counter += bytesWritten
 		offset += bytesWritten
 

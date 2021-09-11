@@ -79,6 +79,12 @@ we can also read string data from bigqueue:
 elem, err := bq.DequeueString()
 ```
 
+or read and append data from bigqueue to omit any allocations by reusing byte slice while dequeueing:
+```go
+var data []byte
+data, err := bq.DequeueAppend(data[:0])
+```
+
 Check whether bigqueue has non zero elements:
 ```go
 isEmpty := bq.IsEmpty()
@@ -106,6 +112,8 @@ Now, read operations can be performed on the consumer:
 ```go
 isEmpty := consumer.IsEmpty()
 elem, err := consumer.Dequeue()
+var data []byte
+data, err := consumer.DequeueAppend(data[:0])
 elem, err := consumer.DequeueString()
 ```
 
@@ -175,6 +183,8 @@ BenchmarkDequeue/ArenaSize-128MB/MessageSize-4MB/MaxMem-256MB-12                
 BenchmarkDequeue/ArenaSize-128MB/MessageSize-4MB/MaxMem-1.25GB-12               	    1257	   1164477 ns/op	 4194314 B/op	       1 allocs/op
 BenchmarkDequeue/ArenaSize-128MB/MessageSize-4MB/MaxMem-NoLimit-12              	    1260	    884842 ns/op	 4194304 B/op	       1 allocs/op
 ```
+
+### DequeueAppend
 
 ### DequeueString
 ```go

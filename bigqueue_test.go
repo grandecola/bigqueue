@@ -108,6 +108,40 @@ func TestDequeue(t *testing.T) {
 	}
 }
 
+
+func TestDequeueAppend(t *testing.T) {
+	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
+	createTestDir(t, testDir)
+	defer deleteTestDir(t, testDir)
+
+	bq, err := NewMmapQueue(testDir)
+	if err != nil {
+		t.Fatalf("unable to get BigQueue :: %v", err)
+	}
+	defer func() {
+		if err := bq.Close(); err != nil {
+			t.Fatalf("error in closing bigqueue :: %v", err)
+		}
+	}()
+
+	var data []byte
+
+	if data, err := bq.DequeueAppend(data[:0]); err != ErrEmptyQueue || len(data) != 0 {
+		t.Fatalf("DequeueAppend should return empty queue error, returned: %v", err)
+	}
+
+	msg := []byte("abcdefghij")
+	if err := bq.Enqueue(msg); err != nil {
+		t.Fatalf("enqueue failed :: %v", err)
+	}
+
+	if data, err := bq.DequeueAppend(data[:0]); err != nil {
+		t.Fatalf("DequeueAppend failed :: %v", err)
+	} else if !bytes.Equal(msg, data) {
+		t.Fatalf("messages don't match :: expected %s, actual: %s", string(msg), string(data))
+	}
+}
+
 func TestEnqueueSmallMessage(t *testing.T) {
 	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
 	createTestDir(t, testDir)

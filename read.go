@@ -33,43 +33,22 @@ func (q *MmapQueue) Dequeue() ([]byte, error) {
 	return q.dequeue(q.dc)
 }
 
-func (q *MmapQueue) dequeue(base int64) ([]byte, error) {
-	q.lock.Lock()
-	defer q.lock.Unlock()
-
-	if err := q.dequeueReader(&q.br, base); err != nil {
-		q.br.b = nil
-		return nil, err
-	}
-	r := q.br.b
-	q.br.b = nil
-	return r, nil
-}
-
-// DequeueString removes a string element from the queue and returns it.
+// DequeueAppend removes an element from the queue and appends it to data.
 // This function uses the default consumer to consume from the queue.
-func (q *MmapQueue) DequeueString() (string, error) {
-	return q.dequeueString(q.dc)
+func (q *MmapQueue) DequeueAppend(data []byte) ([]byte, error) {
+	return q.dequeueAppend(data, q.dc)
 }
 
-func (q *MmapQueue) dequeueString(base int64) (string, error) {
+func (q *MmapQueue) dequeue(base int64) ([]byte, error) {
+	return q.dequeueAppend(nil, base)
+}
+
+func (q *MmapQueue) dequeueAppend(r []byte, base int64) ([]byte, error) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
-	if err := q.dequeueReader(&q.sr, base); err != nil {
-		q.sr.sb.Reset()
-		return "", err
-	}
-	r := q.sr.sb.String()
-	q.sr.sb.Reset()
-	return r, nil
-}
-
-// dequeue reads one element of the queue into given reader.
-// It takes care of reading the element that is spread across multiple arenas.
-func (q *MmapQueue) dequeueReader(r reader, base int64) error {
 	if q.isEmptyNoLock(base) {
-		return ErrEmptyQueue
+		return nil, ErrEmptyQueue
 	}
 
 	// read head
@@ -78,22 +57,35 @@ func (q *MmapQueue) dequeueReader(r reader, base int64) error {
 	// read length
 	newAid, newOffset, length, err := q.readLength(aid, offset)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	aid, offset = newAid, newOffset
 
 	// read message
-	r.grow(length)
+	if cap(r) < length {
+		r = r[:cap(r)]
+		r = append(r, make([]byte, length-len(r))...)
+	} else {
+		r = r[:length]
+	}
+
 	aid, offset, err = q.readBytes(r, aid, offset, length)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// update head
 	q.md.putConsumerHead(base, aid, offset)
 	q.incrMutOps()
 
-	return nil
+	return r, nil
+}
+
+// DequeueString removes a string element from the queue and returns it.
+// This function uses the default consumer to consume from the queue.
+func (q *MmapQueue) DequeueString() (string, error) {
+	s, err := q.Dequeue()
+	return b2s(s), err
 }
 
 // readLength reads length of the message.
@@ -123,7 +115,7 @@ func (q *MmapQueue) readLength(aid, offset int) (int, int, int, error) {
 }
 
 // readBytes reads length bytes from arena aid starting at offset.
-func (q *MmapQueue) readBytes(r reader, aid, offset, length int) (int, int, error) {
+func (q *MmapQueue) readBytes(r []byte, aid, offset, length int) (int, int, error) {
 	counter := 0
 	for {
 		aa, err := q.am.getArena(aid)
@@ -131,7 +123,7 @@ func (q *MmapQueue) readBytes(r reader, aid, offset, length int) (int, int, erro
 			return 0, 0, err
 		}
 
-		bytesRead := r.readFrom(aa, offset, counter)
+		bytesRead, _ := aa.ReadAt(r[counter:], int64(offset))
 		counter += bytesRead
 		offset += bytesRead
 
