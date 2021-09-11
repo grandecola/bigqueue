@@ -10,14 +10,14 @@ func (q *MmapQueue) Enqueue(message []byte) error {
 	return q.enqueue(message)
 }
 
-func (q *MmapQueue) enqueue(w []byte) error {
+func (q *MmapQueue) enqueue(message []byte) error {
 	aid, offset := q.md.getTail()
-	aid, offset, err := q.writeLength(aid, offset, uint64(len(w)))
+	aid, offset, err := q.writeLength(aid, offset, uint64(len(message)))
 	if err != nil {
 		return err
 	}
 
-	aid, offset, err = q.processBytes(writeAt, w, aid, offset, len(w))
+	aid, offset, err = q.processBytes(writeAt, message, aid, offset, len(message))
 	if err != nil {
 		return err
 	}
