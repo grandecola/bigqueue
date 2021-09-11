@@ -69,7 +69,7 @@ func (q *MmapQueue) dequeueAppend(r []byte, base int64) ([]byte, error) {
 	}
 
 	// read message
-	aid, offset, err = q.readBytes(r, aid, offset, length)
+	aid, offset, err = q.processBytes(readAt, r, aid, offset, length)
 	if err != nil {
 		return nil, err
 	}
@@ -84,8 +84,8 @@ func (q *MmapQueue) dequeueAppend(r []byte, base int64) ([]byte, error) {
 // DequeueString removes a string element from the queue and returns it.
 // This function uses the default consumer to consume from the queue.
 func (q *MmapQueue) DequeueString() (string, error) {
-	s, err := q.Dequeue()
-	return b2s(s), err
+	message, err := q.Dequeue()
+	return b2s(message), err
 }
 
 // readLength reads length of the message.
@@ -114,29 +114,3 @@ func (q *MmapQueue) readLength(aid, offset int) (int, int, int, error) {
 	return aid, offset, length, nil
 }
 
-// readBytes reads length bytes from arena aid starting at offset.
-func (q *MmapQueue) readBytes(r []byte, aid, offset, length int) (int, int, error) {
-	counter := 0
-	for {
-		aa, err := q.am.getArena(aid)
-		if err != nil {
-			return 0, 0, err
-		}
-
-		bytesRead, _ := aa.ReadAt(r[counter:], int64(offset))
-		counter += bytesRead
-		offset += bytesRead
-
-		// if offset is equal to arena size, reset arena to next aid and offset to 0.
-		if offset == q.conf.arenaSize {
-			aid, offset = aid+1, 0
-		}
-
-		// check if all bytes are read
-		if counter == length {
-			break
-		}
-	}
-
-	return aid, offset, nil
-}

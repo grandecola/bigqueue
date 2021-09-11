@@ -1,14 +1,16 @@
 package bigqueue
 
+import "github.com/grandecola/mmap"
+
 // Enqueue adds a new slice of byte element to the tail of the queue.
 func (q *MmapQueue) Enqueue(message []byte) error {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
-	return q.enqueueBytes(message)
+	return q.enqueue(message)
 }
 
-func (q *MmapQueue) enqueueBytes(w []byte) error {
+func (q *MmapQueue) enqueue(w []byte) error {
 	var err error
 	aid, offset := q.md.getTail()
 	aid, offset, err = q.writeLength(aid, offset, uint64(len(w)))
@@ -16,7 +18,7 @@ func (q *MmapQueue) enqueueBytes(w []byte) error {
 		return err
 	}
 
-	aid, offset, err = q.writeBytes(w, aid, offset)
+	aid, offset, err = q.processBytes(writeAt, w, aid, offset, len(w))
 	if err != nil {
 		return err
 	}
@@ -52,9 +54,8 @@ func (q *MmapQueue) writeLength(aid, offset int, length uint64) (int, int, error
 	return aid, offset, nil
 }
 
-// writeBytes writes byteSlice in arena(s) with aid starting at offset.
-func (q *MmapQueue) writeBytes(w []byte, aid, offset int) (int, int, error) {
-	length := len(w)
+// processBytes executes function on byteSlice in arena(s) with aid starting at offset.
+func (q *MmapQueue) processBytes(f func(*mmap.File, []byte, int64) (int, error), w []byte, aid, offset, length int) (int, int, error) {
 	counter := 0
 	for {
 		aa, err := q.am.getArena(aid)
@@ -62,9 +63,9 @@ func (q *MmapQueue) writeBytes(w []byte, aid, offset int) (int, int, error) {
 			return 0, 0, err
 		}
 
-		bytesWritten, _ := aa.WriteAt(w[counter:], int64(offset))
-		counter += bytesWritten
-		offset += bytesWritten
+		bytesProcessed, _ := f(aa, w[counter:], int64(offset))
+		counter += bytesProcessed
+		offset += bytesProcessed
 
 		if offset == q.conf.arenaSize {
 			aid, offset = aid+1, 0
@@ -77,4 +78,12 @@ func (q *MmapQueue) writeBytes(w []byte, aid, offset int) (int, int, error) {
 	}
 
 	return aid, offset, nil
+}
+
+func writeAt(aa *mmap.File, data []byte, offset int64) (int, error) {
+	return aa.WriteAt(data, offset)
+}
+
+func readAt(aa *mmap.File, data []byte, offset int64) (int, error) {
+	return aa.ReadAt(data, offset)
 }
