@@ -61,7 +61,6 @@ func (q *MmapQueue) dequeueAppend(r []byte, base int64) ([]byte, error) {
 	}
 	aid, offset = newAid, newOffset
 
-	// read message
 	if cap(r) < length {
 		r = r[:cap(r)]
 		r = append(r, make([]byte, length-len(r))...)
@@ -69,6 +68,7 @@ func (q *MmapQueue) dequeueAppend(r []byte, base int64) ([]byte, error) {
 		r = r[:length]
 	}
 
+	// read message
 	aid, offset, err = q.readBytes(r, aid, offset, length)
 	if err != nil {
 		return nil, err
