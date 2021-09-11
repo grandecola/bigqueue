@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	// ErrEmptyQueue is returned when dequeue is performed on an empty queue.
+	// ErrEmptyQueue is returned when dequeueAppend is performed on an empty queue.
 	ErrEmptyQueue = errors.New("queue is empty")
 )
 
@@ -30,17 +30,13 @@ func (q *MmapQueue) isEmptyNoLock(base int64) bool {
 // Dequeue removes an element from the queue and returns it.
 // This function uses the default consumer to consume from the queue.
 func (q *MmapQueue) Dequeue() ([]byte, error) {
-	return q.dequeue(q.dc)
+	return q.dequeueAppend(nil, q.dc)
 }
 
 // DequeueAppend removes an element from the queue and appends it to data.
 // This function uses the default consumer to consume from the queue.
 func (q *MmapQueue) DequeueAppend(data []byte) ([]byte, error) {
 	return q.dequeueAppend(data, q.dc)
-}
-
-func (q *MmapQueue) dequeue(base int64) ([]byte, error) {
-	return q.dequeueAppend(nil, base)
 }
 
 func (q *MmapQueue) dequeueAppend(r []byte, base int64) ([]byte, error) {
@@ -55,11 +51,10 @@ func (q *MmapQueue) dequeueAppend(r []byte, base int64) ([]byte, error) {
 	aid, offset := q.md.getConsumerHead(base)
 
 	// read length
-	newAid, newOffset, length, err := q.readLength(aid, offset)
+	aid, offset, length, err := q.readLength(aid, offset)
 	if err != nil {
 		return nil, err
 	}
-	aid, offset = newAid, newOffset
 
 	if cap(r) < length {
 		r = r[:cap(r)]

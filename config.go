@@ -76,9 +76,9 @@ func SetMaxInMemArenas(maxInMemArenas int) Option {
 }
 
 // SetPeriodicFlushOps returns an Option that sets the number of
-// mutate operations (enqueue/dequeue) after which the queue's in-memory
+// mutate operations (enqueue/dequeueAppend) after which the queue's in-memory
 // changes will be flushed to disk. This is a best effort flush and number
-// of mutate operations is checked upon an enqueue/dequeue. If the value
+// of mutate operations is checked upon an enqueue/dequeueAppend. If the value
 // is set to <= 0, no periodic flush will be performed.
 //
 // For durability this value should be low.
@@ -93,7 +93,7 @@ func SetPeriodicFlushOps(flushMutOps int64) Option {
 // SetPeriodicFlushDuration returns an Option that sets a periodic
 // flush every given duration after which the queue's in-memory
 // changes will be flushed to disk. This is a best effort flush and
-// elapsed time is checked upon an enqueue/dequeue only. If the value
+// elapsed time is checked upon an enqueue/dequeueAppend only. If the value
 // is set to <= 0, no periodic flush will be performed.
 //
 // For durability this value should be low.

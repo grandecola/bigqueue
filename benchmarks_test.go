@@ -183,7 +183,7 @@ func BenchmarkDequeue(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				if _, err := bq.Dequeue(); err != nil {
-					b.Fatalf("unable to dequeue: %v", err)
+					b.Fatalf("unable to dequeueAppend: %v", err)
 				}
 			}
 
@@ -221,7 +221,7 @@ func BenchmarkDequeueAppend(b *testing.B) {
 			var data []byte
 			for i := 0; i < b.N; i++ {
 				if data, err = bq.DequeueAppend(data[:0]); err != nil {
-					b.Fatalf("unable to dequeue: %v", err)
+					b.Fatalf("unable to dequeueAppend: %v", err)
 				}
 			}
 
@@ -259,7 +259,7 @@ func BenchmarkDequeueString(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				if _, err := bq.DequeueString(); err != nil {
-					b.Fatalf("unable to dequeue: %v", err)
+					b.Fatalf("unable to dequeueAppend: %v", err)
 				}
 			}
 

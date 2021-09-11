@@ -14,7 +14,7 @@ func (c *Consumer) IsEmpty() bool {
 
 // Dequeue removes an element from the queue and returns it.
 func (c *Consumer) Dequeue() ([]byte, error) {
-	return c.mq.dequeue(c.base)
+	return c.mq.dequeueAppend(nil, c.base)
 }
 
 // DequeueAppend removes an element from the queue and appends it to byte slice.

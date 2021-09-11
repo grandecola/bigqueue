@@ -11,9 +11,8 @@ func (q *MmapQueue) Enqueue(message []byte) error {
 }
 
 func (q *MmapQueue) enqueue(w []byte) error {
-	var err error
 	aid, offset := q.md.getTail()
-	aid, offset, err = q.writeLength(aid, offset, uint64(len(w)))
+	aid, offset, err := q.writeLength(aid, offset, uint64(len(w)))
 	if err != nil {
 		return err
 	}
@@ -54,8 +53,8 @@ func (q *MmapQueue) writeLength(aid, offset int, length uint64) (int, int, error
 	return aid, offset, nil
 }
 
-// processBytes executes function on byteSlice in arena(s) with aid starting at offset.
-func (q *MmapQueue) processBytes(f func(*mmap.File, []byte, int64) (int, error), w []byte, aid, offset, length int) (int, int, error) {
+// processBytes executes function on data in arena(s) with aid starting at offset for certain length.
+func (q *MmapQueue) processBytes(f func(*mmap.File, []byte, int64) (int, error), data []byte, aid, offset, length int) (int, int, error) {
 	counter := 0
 	for {
 		aa, err := q.am.getArena(aid)
@@ -63,7 +62,7 @@ func (q *MmapQueue) processBytes(f func(*mmap.File, []byte, int64) (int, error),
 			return 0, 0, err
 		}
 
-		bytesProcessed, _ := f(aa, w[counter:], int64(offset))
+		bytesProcessed, _ := f(aa, data[counter:], int64(offset))
 		counter += bytesProcessed
 		offset += bytesProcessed
 

@@ -69,7 +69,7 @@ func TestIsEmpty(t *testing.T) {
 	}
 
 	if _, err := bq.Dequeue(); err != nil {
-		t.Fatalf("unable to dequeue message :: %v", err)
+		t.Fatalf("unable to dequeueAppend message :: %v", err)
 	}
 
 	if !bq.IsEmpty() {
@@ -167,7 +167,7 @@ func TestEnqueueSmallMessage(t *testing.T) {
 	}
 
 	if poppedMsg, err := bq.Dequeue(); err != nil {
-		t.Fatalf("unable to dequeue :: %v", err)
+		t.Fatalf("unable to dequeueAppend :: %v", err)
 	} else if !bytes.Equal(msg, poppedMsg) {
 		t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
 	}
@@ -296,7 +296,7 @@ func TestEnqueueLargeNumberOfMessages(t *testing.T) {
 
 	for i := 0; i < numMessages; i++ {
 		if msg, err := bq.Dequeue(); err != nil {
-			t.Fatalf("unable to dequeue message :: %v", err)
+			t.Fatalf("unable to dequeueAppend message :: %v", err)
 		} else if len(msg) != lengths[i] {
 			t.Fatalf("enqueued and dequeued lengths don't match for msg no %d", i)
 		}
@@ -332,7 +332,7 @@ func TestEnqueueZeroLengthMessage(t *testing.T) {
 	}
 
 	if deQueuedMsg, err := bq.Dequeue(); err != nil {
-		t.Fatalf("unable to dequeue empty message")
+		t.Fatalf("unable to dequeueAppend empty message")
 	} else if !bytes.Equal(deQueuedMsg, emptyMsg) {
 		t.Fatalf("dequeued and enqueued messages are not equal")
 	}
@@ -369,10 +369,10 @@ func TestEnqueueWhenMessageLengthFits(t *testing.T) {
 	}
 
 	if _, err := bq.Dequeue(); err != nil {
-		t.Fatalf("unable to dequeue msg1: %s", err)
+		t.Fatalf("unable to dequeueAppend msg1: %s", err)
 	}
 	if _, err := bq.Dequeue(); err != nil {
-		t.Fatalf("unable to dequeue msg2: %s", err)
+		t.Fatalf("unable to dequeueAppend msg2: %s", err)
 	}
 }
 
@@ -411,7 +411,7 @@ func TestReadWriteCornerCases(t *testing.T) {
 		}
 
 		if poppedMsg, err := bq.Dequeue(); err != nil {
-			t.Fatalf("unable to dequeue :: %v", err)
+			t.Fatalf("unable to dequeueAppend :: %v", err)
 		} else if !bytes.Equal(msg, poppedMsg) {
 			t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
 		}
@@ -451,7 +451,7 @@ func TestArenaSize(t *testing.T) {
 	}
 
 	if poppedMsg, err := bq.Dequeue(); err != nil {
-		t.Fatalf("unable to dequeue :: %v", err)
+		t.Fatalf("unable to dequeueAppend :: %v", err)
 	} else if !bytes.Equal(msg, poppedMsg) {
 		t.Fatalf("unequal length, eq: %s, dq: %s", string(msg), string(poppedMsg))
 	}
@@ -486,7 +486,7 @@ func TestArenaSize2(t *testing.T) {
 
 	for i := 0; i < arenaSize/len(msg)*4; i++ {
 		if poppedMsg, err := bq.Dequeue(); err != nil {
-			t.Fatalf("unable to dequeue :: %v", err)
+			t.Fatalf("unable to dequeueAppend :: %v", err)
 		} else if !bytes.Equal(msg, poppedMsg) {
 			t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
 		}
@@ -522,7 +522,7 @@ func TestArenaSize3(t *testing.T) {
 
 	for i := 0; i < arenaSize/len(msg)*4; i++ {
 		if poppedMsg, err := bq.Dequeue(); err != nil {
-			t.Fatalf("unable to dequeue :: %v", err)
+			t.Fatalf("unable to dequeueAppend :: %v", err)
 		} else if !bytes.Equal(msg, poppedMsg) {
 			t.Fatalf("unequal length, eq: %s, dq: %s", string(msg), string(poppedMsg))
 		}
@@ -593,7 +593,7 @@ func TestArenaSizeNotMultiple(t *testing.T) {
 	}()
 
 	if poppedMsg, err := bq.Dequeue(); err != nil {
-		t.Fatalf("unable to dequeue :: %v", err)
+		t.Fatalf("unable to dequeueAppend :: %v", err)
 	} else if !bytes.Equal(msg, poppedMsg) {
 		t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
 	}
@@ -674,7 +674,7 @@ func runTestLimitedMemory(t *testing.T, messageSize, arenaSize, maxInMemArenas i
 
 	for i := 0; i < 5; i++ {
 		if _, err := bq.Dequeue(); err != nil {
-			t.Fatalf("dequeue failed :: %v", err)
+			t.Fatalf("dequeueAppend failed :: %v", err)
 		}
 
 		checkInMemArenaInvariant(t, bq)
@@ -704,7 +704,7 @@ func runTestLimitedMemory(t *testing.T, messageSize, arenaSize, maxInMemArenas i
 
 	for i := 0; i < 7; i++ {
 		if poppedMsg, err := bq.Dequeue(); err != nil {
-			t.Fatalf("unable to dequeue :: %v", err)
+			t.Fatalf("unable to dequeueAppend :: %v", err)
 		} else if !bytes.Equal(msg, poppedMsg) {
 			t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
 		}
@@ -718,7 +718,7 @@ func runTestLimitedMemory(t *testing.T, messageSize, arenaSize, maxInMemArenas i
 
 	for i := 0; i < 11; i++ {
 		if _, err := bq.Dequeue(); err != nil {
-			t.Fatalf("dequeue failed :: %v", err)
+			t.Fatalf("dequeueAppend failed :: %v", err)
 		}
 
 		checkInMemArenaInvariant(t, bq)
@@ -781,7 +781,7 @@ func TestReadWriteString(t *testing.T) {
 	}
 
 	if poppedMsg, err := bq.DequeueString(); err != nil {
-		t.Fatalf("unable to dequeue :: %v", err)
+		t.Fatalf("unable to dequeueAppend :: %v", err)
 	} else if msg != poppedMsg {
 		t.Fatalf("unequal messages, eq: %s, dq: %s", msg, poppedMsg)
 	}
@@ -802,7 +802,7 @@ func TestReadWriteString(t *testing.T) {
 	}
 
 	if poppedMsg, err := bq.DequeueString(); err != nil {
-		t.Fatalf("unable to dequeue :: %v", err)
+		t.Fatalf("unable to dequeueAppend :: %v", err)
 	} else if poppedMsg != "" {
 		t.Fatalf("unequal messages, eq: <>, dq: %s", poppedMsg)
 	}
@@ -814,7 +814,7 @@ func TestReadWriteString(t *testing.T) {
 	}
 
 	if poppedMsg, err := bq.DequeueString(); err != nil {
-		t.Fatalf("unable to dequeue :: %v", err)
+		t.Fatalf("unable to dequeueAppend :: %v", err)
 	} else if smallStr != poppedMsg {
 		t.Fatalf("unequal messages, eq: <>, dq: %s", poppedMsg)
 	}
@@ -846,7 +846,7 @@ func TestConsumerSmallMessage(t *testing.T) {
 
 	// enqueue message using default consumer
 	if poppedMsg, err := bq.Dequeue(); err != nil {
-		t.Fatalf("unable to dequeue :: %v", err)
+		t.Fatalf("unable to dequeueAppend :: %v", err)
 	} else if !bytes.Equal(msg, poppedMsg) {
 		t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
 	}
@@ -861,7 +861,7 @@ func TestConsumerSmallMessage(t *testing.T) {
 	}
 
 	if poppedMsg, err := c.Dequeue(); err != nil {
-		t.Fatalf("unable to dequeue from consumer :: %v", err)
+		t.Fatalf("unable to dequeueAppend from consumer :: %v", err)
 	} else if !bytes.Equal(msg, poppedMsg) {
 		t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
 	}
@@ -902,7 +902,7 @@ func TestConsumerReadWriteCornerCases(t *testing.T) {
 		}
 
 		if poppedMsg, err := bq.Dequeue(); err != nil {
-			t.Fatalf("unable to dequeue :: %v", err)
+			t.Fatalf("unable to dequeueAppend :: %v", err)
 		} else if !bytes.Equal(msg, poppedMsg) {
 			t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
 		}
@@ -922,7 +922,7 @@ func TestConsumerReadWriteCornerCases(t *testing.T) {
 
 		for j := 1; j <= i-1; j++ {
 			if _, err := cur.Dequeue(); err != nil {
-				t.Fatalf("unable to dequeue from consumer :: %v", err)
+				t.Fatalf("unable to dequeueAppend from consumer :: %v", err)
 			}
 		}
 
@@ -933,7 +933,7 @@ func TestConsumerReadWriteCornerCases(t *testing.T) {
 			}
 
 			if poppedMsg, err := c.DequeueString(); err != nil {
-				t.Fatalf("unable to dequeue from consumer :: %v", err)
+				t.Fatalf("unable to dequeueAppend from consumer :: %v", err)
 			} else if string(msg) != poppedMsg {
 				t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
 			}
@@ -984,7 +984,7 @@ func TestCopyConsumerReadWriteCornerCases(t *testing.T) {
 		}
 
 		if poppedMsg, err := bq.Dequeue(); err != nil {
-			t.Fatalf("unable to dequeue :: %v", err)
+			t.Fatalf("unable to dequeueAppend :: %v", err)
 		} else if !bytes.Equal(msg, poppedMsg) {
 			t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
 		}
@@ -1013,7 +1013,7 @@ func TestCopyConsumerReadWriteCornerCases(t *testing.T) {
 			}
 
 			if poppedMsg, err := c.DequeueString(); err != nil {
-				t.Fatalf("unable to dequeue from consumer :: %v", err)
+				t.Fatalf("unable to dequeueAppend from consumer :: %v", err)
 			} else if string(msg) != poppedMsg {
 				t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
 			}

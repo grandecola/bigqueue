@@ -36,4 +36,15 @@ func main() {
 	} else {
 		fmt.Println("expected: elem2, dequeued:", elem2)
 	}
+
+	data := []byte("elem")
+	if err := bq.Enqueue(data); err != nil {
+		panic(err)
+	}
+	if data, err = bq.DequeueAppend(data[:0]); err != nil {
+		panic(err)
+	}
+	if string(data) != "elem" {
+		panic(err)
+	}
 }
