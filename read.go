@@ -2,6 +2,7 @@ package bigqueue
 
 import (
 	"errors"
+	"strings"
 )
 
 var (
@@ -79,8 +80,39 @@ func (q *MmapQueue) dequeueAppend(r []byte, base int64) ([]byte, error) {
 // DequeueString removes a string element from the queue and returns it.
 // This function uses the default consumer to consume from the queue.
 func (q *MmapQueue) DequeueString() (string, error) {
-	message, err := q.Dequeue()
-	return b2s(message), err
+	return q.dequeueString(q.dc)
+}
+
+func (q *MmapQueue) dequeueString(base int64) (string, error) {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+
+	if q.isEmptyNoLock(base) {
+		return "", ErrEmptyQueue
+	}
+
+	// read head
+	aid, offset := q.md.getConsumerHead(base)
+
+	// read length
+	aid, offset, length, err := q.readLength(aid, offset)
+	if err != nil {
+		return "", err
+	}
+
+	// read message
+	var r strings.Builder
+	r.Grow(length)
+	aid, offset, err = q.processString(readStringAt, &r, "", aid, offset, length)
+	if err != nil {
+		return "", err
+	}
+
+	// update head
+	q.md.putConsumerHead(base, aid, offset)
+	q.incrMutOps()
+
+	return r.String(), nil
 }
 
 // readLength reads length of the message.

@@ -24,6 +24,5 @@ func (c *Consumer) DequeueAppend(data []byte) ([]byte, error) {
 
 // DequeueString removes a string element from the queue and returns it.
 func (c *Consumer) DequeueString() (string, error) {
-	m, err := c.Dequeue()
-	return b2s(m), err
+	return c.mq.dequeueString(c.base)
 }
