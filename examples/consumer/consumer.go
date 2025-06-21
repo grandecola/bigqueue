@@ -25,17 +25,17 @@ func main() {
 		panic("queue cannot be empty")
 	}
 
-	if elem, err := bq.Dequeue(); err != nil {
+	elem, err := bq.Dequeue()
+	if err != nil {
 		panic(err)
-	} else {
-		fmt.Println("expected: elem, dequeued:", string(elem))
 	}
+	fmt.Println("expected: elem, dequeued:", string(elem))
 
-	if elem2, err := bq.DequeueString(); err != nil {
+	elem2, err := bq.DequeueString()
+	if err != nil {
 		panic(err)
-	} else {
-		fmt.Println("expected: elem2, dequeued:", elem2)
 	}
+	fmt.Println("expected: elem2, dequeued:", elem2)
 
 	c1, err := bq.NewConsumer("consumer1")
 	if err != nil {
@@ -46,11 +46,11 @@ func main() {
 		panic("consumer1: queue cannot be empty")
 	}
 
-	if elem, err := c1.Dequeue(); err != nil {
+	elem, err = c1.Dequeue()
+	if err != nil {
 		panic(err)
-	} else {
-		fmt.Println("consumer1: expected: elem, dequeued:", string(elem))
 	}
+	fmt.Println("consumer1: expected: elem, dequeued:", string(elem))
 
 	c2, err := bq.FromConsumer("consumer2", c1)
 	if err != nil {
@@ -61,9 +61,9 @@ func main() {
 		panic("consumer2: queue cannot be empty")
 	}
 
-	if elem2, err := c2.DequeueString(); err != nil {
+	elem2, err = c2.DequeueString()
+	if err != nil {
 		panic(err)
-	} else {
-		fmt.Println("consumer2: expected: elem2, dequeued:", elem2)
 	}
+	fmt.Println("consumer2: expected: elem2, dequeued:", elem2)
 }

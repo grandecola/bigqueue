@@ -51,6 +51,7 @@ func getBenchParams() []benchParam {
 }
 
 func createBenchDir(b *testing.B, dir string) {
+	b.Helper()
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		if err := os.Mkdir(dir, 0744); err != nil {
 			b.Fatalf("unable to create dir for benchmark: %v", err)
@@ -59,6 +60,7 @@ func createBenchDir(b *testing.B, dir string) {
 }
 
 func removeBenchDir(b *testing.B, dir string) {
+	b.Helper()
 	if err := os.RemoveAll(dir); err != nil {
 		b.Fatalf("unable to delete dir for benchmark: %v", err)
 	}
@@ -72,10 +74,10 @@ func BenchmarkNewMmapQueue(b *testing.B) {
 		}
 		prevValue = param.arenaSize
 
-		b.Run(fmt.Sprintf("ArenaSize-%s", param.arenaSizeString), func(b *testing.B) {
+		b.Run(fmt.Sprintf("ArenaSize-%v", param.arenaSizeString), func(b *testing.B) {
 			b.ReportAllocs()
 			b.StopTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				dir := path.Join(os.TempDir(), "testdir")
 				createBenchDir(b, path.Join(os.TempDir(), "testdir"))
 
@@ -112,7 +114,7 @@ func BenchmarkEnqueue(b *testing.B) {
 
 			b.ReportAllocs()
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				if err := bq.Enqueue(param.message); err != nil {
 					b.Fatalf("unable to enqueue: %v", err)
 				}
@@ -144,7 +146,7 @@ func BenchmarkEnqueueString(b *testing.B) {
 			message := string(param.message)
 			b.ReportAllocs()
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				if err := bq.EnqueueString(message); err != nil {
 					b.Fatalf("unable to enqueue: %v", err)
 				}
@@ -173,7 +175,7 @@ func BenchmarkDequeue(b *testing.B) {
 				b.Fatalf("unable to create bigqueue: %v", err)
 			}
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				if err := bq.Enqueue(param.message); err != nil {
 					b.Fatalf("unable to enqueue: %v", err)
 				}
@@ -181,7 +183,7 @@ func BenchmarkDequeue(b *testing.B) {
 
 			b.ReportAllocs()
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				if _, err := bq.Dequeue(); err != nil {
 					b.Fatalf("unable to dequeue: %v", err)
 				}
@@ -211,7 +213,7 @@ func BenchmarkDequeueString(b *testing.B) {
 			}
 
 			message := string(param.message)
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				if err := bq.EnqueueString(message); err != nil {
 					b.Fatalf("unable to enqueue: %v", err)
 				}
@@ -219,7 +221,7 @@ func BenchmarkDequeueString(b *testing.B) {
 
 			b.ReportAllocs()
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				if _, err := bq.DequeueString(); err != nil {
 					b.Fatalf("unable to dequeue: %v", err)
 				}
@@ -245,7 +247,7 @@ func BenchmarkStringDoubleCopy(b *testing.B) {
 	}
 
 	data := "abcdefghijk"
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if err := bq.Enqueue([]byte(data)); err != nil {
 			b.Fatalf("error in enqueue :: %v", err)
 		}
@@ -263,7 +265,7 @@ func BenchmarkStringNoCopy(b *testing.B) {
 	}
 
 	data := "abcdefghijk"
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if err := bq.EnqueueString(data); err != nil {
 			b.Fatalf("error in enqueue :: %v", err)
 		}

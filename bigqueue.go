@@ -145,7 +145,7 @@ func (q *MmapQueue) Close() error {
 	// between periodic flush goroutine and Close() function.
 	// A possible lock cycle is here:
 	//        Close() after it has acquired the lock ->
-	//     -> Close() waiting for periodic flush goroutine to stop -> 
+	//     -> Close() waiting for periodic flush goroutine to stop ->
 	//     -> Periodic flush goroutine is trying to acquire the lock ->
 	//     -> Close() to release the lock
 	close(q.quit)
@@ -207,7 +207,7 @@ func (q *MmapQueue) periodicFlush() {
 
 	timer := &time.Timer{C: make(chan time.Time)}
 	if q.conf.flushPeriod > 0 {
-		timer = time.NewTimer(time.Duration(q.conf.flushPeriod))
+		timer = time.NewTimer(q.conf.flushPeriod)
 	}
 
 	var drainFlag bool
@@ -217,7 +217,7 @@ func (q *MmapQueue) periodicFlush() {
 				<-timer.C
 			}
 
-			timer.Reset(time.Duration(q.conf.flushPeriod))
+			timer.Reset(q.conf.flushPeriod)
 			drainFlag = false
 		}
 

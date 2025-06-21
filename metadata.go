@@ -33,7 +33,7 @@ type metadata struct {
 }
 
 // newMetadata creates/reads metadata file for a bigqueue.
-func newMetadata(dataDir string, arenaSize int) (*metadata, error) {
+func newMetadata(dataDir string, _ int) (*metadata, error) {
 	metaPath := filepath.Join(dataDir, cMetadataFileName)
 	info, err := os.Stat(metaPath)
 	switch {
@@ -64,7 +64,7 @@ func loadFile(metaPath string, size int64) (*metadata, error) {
 	}
 
 	base := int64(cMetadataSize)
-	for i := 0; i < md.getNumConsumers(); i++ {
+	for range md.getNumConsumers() {
 		name := md.getConsumerName(base)
 		md.co[name] = base
 		base += int64(len(name)) + 24
@@ -93,11 +93,10 @@ func createFile(metaPath string) (*metadata, error) {
 
 // getVersion reads the value of data format version.
 //
-//   <-------- version ------->
-//  +------------+------------+
-//  | byte 00-03 | byte 04-07 |
-//  +------------+------------+
-//
+//	 <-------- version ------->
+//	+------------+------------+
+//	| byte 00-03 | byte 04-07 |
+//	+------------+------------+
 func (m *metadata) getVersion() int {
 	return int(m.aa.ReadUint64At(0))
 }
@@ -110,14 +109,15 @@ func (m *metadata) putVersion() {
 // getHead reads the value of head of the queue from the metadata.
 // head points to the first element that is still not deleted yet.
 // Head of a bigqueue can be identified using:
-//   1. Arena ID
-//   2. Position (offset) in the arena
 //
-//   <------- head aid ------> <------- head pos ------>
-//  +------------+------------+------------+------------+
-//  | byte 08-11 | byte 12-15 | byte 16-19 | byte 20-23 |
-//  +------------+------------+------------+------------+
+//  1. Arena ID
 //
+//  2. Position (offset) in the arena
+//
+//     <------- head aid ------> <------- head pos ------>
+//     +------------+------------+------------+------------+
+//     | byte 08-11 | byte 12-15 | byte 16-19 | byte 20-23 |
+//     +------------+------------+------------+------------+
 func (m *metadata) getHead() (int, int) {
 	return int(m.aa.ReadUint64At(8)), int(m.aa.ReadUint64At(16))
 }
@@ -130,13 +130,15 @@ func (m *metadata) getHead() (int, int) {
 
 // getTail reads the values of tail of the queue from the metadata arena.
 // Tail of a bigqueue, similar to head, can be identified using:
-//   1. Arena ID
-//   2. Position (offset) in the arena
 //
-//   <------- tail aid ------> <------- tail pos ------>
-//  +------------+------------+------------+------------+
-//  | byte 24-27 | byte 28-31 | byte 32-35 | byte 36-39 |
-//  +------------+------------+------------+------------+
+//  1. Arena ID
+//
+//  2. Position (offset) in the arena
+//
+//     <------- tail aid ------> <------- tail pos ------>
+//     +------------+------------+------------+------------+
+//     | byte 24-27 | byte 28-31 | byte 32-35 | byte 36-39 |
+//     +------------+------------+------------+------------+
 func (m *metadata) getTail() (int, int) {
 	return int(m.aa.ReadUint64At(24)), int(m.aa.ReadUint64At(32))
 }
@@ -149,11 +151,10 @@ func (m *metadata) putTail(aid, pos int) {
 
 // getArenaSize reads the value of arena size from metadata file.
 //
-//   <------ arena size ----->
-//  +------------+------------+
-//  | byte 40-43 | byte 44-47 |
-//  +------------+------------+
-//
+//	 <------ arena size ----->
+//	+------------+------------+
+//	| byte 40-43 | byte 44-47 |
+//	+------------+------------+
 func (m *metadata) getArenaSize() int {
 	return int(m.aa.ReadUint64At(40))
 }
@@ -165,11 +166,10 @@ func (m *metadata) putArenaSize(size int) {
 
 // getNumConsumers reads the value of # of consumers from metadata file.
 //
-//   <---- # of consumers --->
-//  +------------+------------+
-//  | byte 48-51 | byte 52-55 |
-//  +------------+------------+
-//
+//	 <---- # of consumers --->
+//	+------------+------------+
+//	| byte 48-51 | byte 52-55 |
+//	+------------+------------+
 func (m *metadata) getNumConsumers() int {
 	return int(m.aa.ReadUint64At(48))
 }
@@ -180,7 +180,7 @@ func (m *metadata) putNumConsumers(size int) {
 }
 
 /*
- * Now, we store all the conusmer information in the metadata file.
+ * Now, we store all the consumer information in the metadata file.
  * We store 4 things for a given consumer (in this order) -
  *   1. Consumer name length (8 bytes)
  *   2. Head arena id (8 bytes)
@@ -191,11 +191,10 @@ func (m *metadata) putNumConsumers(size int) {
 // getConsumerLength reads the length of the consumer name for
 // the consumer stored at a given base offset in metadata file.
 //
-//   <------------- consumer length ----------->
-//  +--------------------+----------------------+
-//  | byte base - base+3 | byte base+4 - base+7 |
-//  +--------------------+----------------------+
-//
+//	 <------------- consumer length ----------->
+//	+--------------------+----------------------+
+//	| byte base - base+3 | byte base+4 - base+7 |
+//	+--------------------+----------------------+
 func (m *metadata) getConsumerLength(base int64) int {
 	return int(m.aa.ReadUint64At(base))
 }
@@ -208,11 +207,10 @@ func (m *metadata) putConsumerLength(base int64, length int) {
 // getConsumerHead reads the head position (aid+offset) for
 // the consumer stored at a given base offset in metadata file.
 //
-//   <-------------- consumer head AID -------------> <-------------- consumer head pos -------------->
-//  +-----------------------+------------------------+------------------------+------------------------+
-//  | byte base+8 - base+11 | byte base+12 - base+15 | byte base+16 - base+19 | byte base+20 - base+23 |
-//  +-----------------------+------------------------+------------------------+------------------------+
-//
+//	 <-------------- consumer head AID -------------> <-------------- consumer head pos -------------->
+//	+-----------------------+------------------------+------------------------+------------------------+
+//	| byte base+8 - base+11 | byte base+12 - base+15 | byte base+16 - base+19 | byte base+20 - base+23 |
+//	+-----------------------+------------------------+------------------------+------------------------+
 func (m *metadata) getConsumerHead(base int64) (int, int) {
 	return int(m.aa.ReadUint64At(base + 8)), int(m.aa.ReadUint64At(base + 16))
 }
@@ -226,8 +224,9 @@ func (m *metadata) putConsumerHead(base int64, aid, pos int) {
 // getConsumerName reads the name of the consumer stored at a given offset in metadata.
 func (m *metadata) getConsumerName(base int64) string {
 	sb := &strings.Builder{}
-	sb.Grow(m.getConsumerLength(base))
-	_ = m.aa.ReadStringAt(sb, base+24)
+	length := m.getConsumerLength(base)
+	sb.Grow(length)
+	_ = m.aa.ReadStringAt(sb, base+24, int64(length))
 	return sb.String()
 }
 

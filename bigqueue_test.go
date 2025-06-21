@@ -7,7 +7,6 @@ import (
 	"math"
 	"math/rand"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,36 +14,18 @@ import (
 	"time"
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
 func checkInMemArenaInvariant(t *testing.T, bq *MmapQueue) {
+	t.Helper()
 	if bq.am.inMem > bq.conf.maxInMemArenas {
 		t.Fatalf("# of in memory arenas should not be more than %v, actual: %v",
 			bq.conf.maxInMemArenas, len(bq.am.arenas))
 	}
 }
 
-func createTestDir(t *testing.T, testDir string) {
-	if _, err := os.Stat(testDir); os.IsNotExist(err) {
-		if err := os.Mkdir(testDir, cFilePerm); err != nil {
-			t.Fatalf("unable to create test dir: %v", err)
-		}
-	}
-}
-
-func deleteTestDir(t *testing.T, testDir string) {
-	if err := os.RemoveAll(testDir); err != nil {
-		t.Fatalf("unable to delete test dir: %v", err)
-	}
-}
-
 func TestIsEmpty(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	bq, err := NewMmapQueue(testDir + "/")
 	if err != nil {
 		t.Fatalf("unable to get BigQueue: %v", err)
@@ -78,10 +59,9 @@ func TestIsEmpty(t *testing.T) {
 }
 
 func TestDequeue(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	bq, err := NewMmapQueue(testDir)
 	if err != nil {
 		t.Fatalf("unable to get BigQueue :: %v", err)
@@ -109,10 +89,9 @@ func TestDequeue(t *testing.T) {
 }
 
 func TestEnqueueSmallMessage(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	bq, err := NewMmapQueue(testDir)
 	if err != nil {
 		t.Fatalf("unable to get BigQueue: %v", err)
@@ -140,10 +119,9 @@ func TestEnqueueSmallMessage(t *testing.T) {
 }
 
 func TestEnqueueLargeMessage(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	bq, err := NewMmapQueue(testDir)
 	if err != nil {
 		t.Fatalf("unable to get BigQueue: %v", err)
@@ -155,7 +133,7 @@ func TestEnqueueLargeMessage(t *testing.T) {
 	}()
 
 	msg := make([]byte, 0)
-	for i := 0; i < cDefaultArenaSize-8; i++ {
+	for range cDefaultArenaSize - 8 {
 		m := []byte("a")
 		msg = append(msg, m...)
 	}
@@ -175,10 +153,9 @@ func TestEnqueueLargeMessage(t *testing.T) {
 }
 
 func TestEnqueueOverlapLength(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	bq, err := NewMmapQueue(testDir)
 	if err != nil {
 		t.Fatalf("unable to get BigQueue: %v", err)
@@ -190,7 +167,7 @@ func TestEnqueueOverlapLength(t *testing.T) {
 	}()
 
 	msg1 := make([]byte, 0)
-	for i := 0; i < cDefaultArenaSize-12; i++ {
+	for range cDefaultArenaSize - 12 {
 		m := []byte("a")
 		msg1 = append(msg1, m...)
 	}
@@ -199,7 +176,7 @@ func TestEnqueueOverlapLength(t *testing.T) {
 	}
 
 	msg2 := make([]byte, 0)
-	for i := 0; i < cDefaultArenaSize-4; i++ {
+	for range cDefaultArenaSize - 4 {
 		m := []byte("a")
 		msg2 = append(msg2, m...)
 	}
@@ -225,10 +202,9 @@ func TestEnqueueOverlapLength(t *testing.T) {
 }
 
 func TestEnqueueLargeNumberOfMessages(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	bq, err := NewMmapQueue(testDir)
 	if err != nil {
 		t.Fatalf("unable to get BigQueue: %s", err)
@@ -242,7 +218,7 @@ func TestEnqueueLargeNumberOfMessages(t *testing.T) {
 	numMessages := 10
 	lengths := make([]int, 0)
 	alphabets := "abcdefghijklmnopqrstuvwxyz"
-	for i := 0; i < numMessages; i++ {
+	for range numMessages {
 		msgLen := rand.Intn(cDefaultArenaSize) + cDefaultArenaSize
 		lengths = append(lengths, msgLen)
 		msg := make([]byte, 0)
@@ -260,7 +236,7 @@ func TestEnqueueLargeNumberOfMessages(t *testing.T) {
 		}
 	}
 
-	for i := 0; i < numMessages; i++ {
+	for i := range numMessages {
 		if msg, err := bq.Dequeue(); err != nil {
 			t.Fatalf("unable to dequeue message :: %v", err)
 		} else if len(msg) != lengths[i] {
@@ -274,10 +250,9 @@ func TestEnqueueLargeNumberOfMessages(t *testing.T) {
 }
 
 func TestEnqueueZeroLengthMessage(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	bq, err := NewMmapQueue(testDir)
 	if err != nil {
 		t.Fatalf("unable to get BigQueue: %v", err)
@@ -309,10 +284,9 @@ func TestEnqueueZeroLengthMessage(t *testing.T) {
 }
 
 func TestEnqueueWhenMessageLengthFits(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	arenaSize := 4 * 1024
 	bq, err := NewMmapQueue(testDir, SetArenaSize(arenaSize))
 	if err != nil {
@@ -343,10 +317,9 @@ func TestEnqueueWhenMessageLengthFits(t *testing.T) {
 }
 
 func TestReadWriteCornerCases(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	arenaSize := 8 * 1024
 	bq, err := NewMmapQueue(testDir, SetArenaSize(arenaSize))
 	if err != nil {
@@ -393,10 +366,9 @@ func TestReadWriteCornerCases(t *testing.T) {
 }
 
 func TestArenaSize(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	bq, err := NewMmapQueue(testDir, SetArenaSize(8*1024))
 	if err != nil {
 		t.Fatalf("unable to get BigQueue: %v", err)
@@ -424,10 +396,9 @@ func TestArenaSize(t *testing.T) {
 }
 
 func TestArenaSize2(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	arenaSize := os.Getpagesize() * 2
 	bq, err := NewMmapQueue(testDir, SetArenaSize(arenaSize))
 	if err != nil {
@@ -440,7 +411,7 @@ func TestArenaSize2(t *testing.T) {
 	}()
 
 	msg := []byte("abcdefghij")
-	for i := 0; i < arenaSize/len(msg)*4; i++ {
+	for range arenaSize / len(msg) * 4 {
 		if err := bq.Enqueue(msg); err != nil {
 			t.Fatalf("enqueue failed :: %v", err)
 		}
@@ -450,7 +421,7 @@ func TestArenaSize2(t *testing.T) {
 		t.Fatalf("BigQueue should not be empty")
 	}
 
-	for i := 0; i < arenaSize/len(msg)*4; i++ {
+	for range arenaSize / len(msg) * 4 {
 		if poppedMsg, err := bq.Dequeue(); err != nil {
 			t.Fatalf("unable to dequeue :: %v", err)
 		} else if !bytes.Equal(msg, poppedMsg) {
@@ -460,10 +431,9 @@ func TestArenaSize2(t *testing.T) {
 }
 
 func TestArenaSize3(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	arenaSize := os.Getpagesize()
 	bq, err := NewMmapQueue(testDir, SetArenaSize(arenaSize))
 	if err != nil {
@@ -476,7 +446,7 @@ func TestArenaSize3(t *testing.T) {
 	}()
 
 	msg := []byte("abcdefgh")
-	for i := 0; i < arenaSize/len(msg)*4; i++ {
+	for range arenaSize / len(msg) * 4 {
 		if err := bq.Enqueue(msg); err != nil {
 			t.Fatalf("enqueue failed :: %v", err)
 		}
@@ -486,7 +456,7 @@ func TestArenaSize3(t *testing.T) {
 		t.Fatalf("BigQueue should not be empty")
 	}
 
-	for i := 0; i < arenaSize/len(msg)*4; i++ {
+	for range arenaSize / len(msg) * 4 {
 		if poppedMsg, err := bq.Dequeue(); err != nil {
 			t.Fatalf("unable to dequeue :: %v", err)
 		} else if !bytes.Equal(msg, poppedMsg) {
@@ -496,10 +466,9 @@ func TestArenaSize3(t *testing.T) {
 }
 
 func TestArenaSizeFail(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	_, err := NewMmapQueue(testDir, SetArenaSize(os.Getpagesize()/2))
 	if err != ErrTooSmallArenaSize {
 		t.Fatalf("expected error: %v, got: %v", ErrTooSmallArenaSize, err)
@@ -507,10 +476,9 @@ func TestArenaSizeFail(t *testing.T) {
 }
 
 func TestArenaSizeFail2(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	bq, err := NewMmapQueue(testDir, SetArenaSize(8*1024))
 	if err != nil {
 		t.Fatalf("unable to get BigQueue: %v", err)
@@ -530,10 +498,9 @@ func TestArenaSizeFail2(t *testing.T) {
 }
 
 func TestArenaSizeNotMultiple(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	bq, err := NewMmapQueue(testDir, SetArenaSize(5732))
 	if err != nil {
 		t.Fatalf("unable to get BigQueue: %v", err)
@@ -566,6 +533,8 @@ func TestArenaSizeNotMultiple(t *testing.T) {
 }
 
 func TestNewBigqueueNoFolder(t *testing.T) {
+	t.Parallel()
+
 	bq, err := NewMmapQueue("1/2/3/4/5/6")
 	if !os.IsNotExist(errors.Unwrap(errors.Unwrap(err))) || bq != nil {
 		t.Fatalf("expected file not exists error, returned: %v", err)
@@ -573,24 +542,22 @@ func TestNewBigqueueNoFolder(t *testing.T) {
 }
 
 func TestNewBigqueueTooLargeArena(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	arenaSize := math.MaxInt64
 	bq, err := NewMmapQueue(testDir, SetArenaSize(arenaSize))
-	if bq != nil || !(strings.Contains(err.Error(), "file too large") ||
-		strings.Contains(err.Error(), "no space left on device")) {
+	if bq != nil || !strings.Contains(err.Error(), "file too large") &&
+		!strings.Contains(err.Error(), "no space left on device") {
 
 		t.Fatalf("expected file too large, returned: %v", err)
 	}
 }
 
 func TestLimitedMemoryErr(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	arenaSize := os.Getpagesize() * 2
 	bq, err := NewMmapQueue(testDir, SetArenaSize(arenaSize), SetMaxInMemArenas(1))
 	if err != ErrTooFewInMemArenas || bq != nil {
@@ -599,10 +566,9 @@ func TestLimitedMemoryErr(t *testing.T) {
 }
 
 func TestLimitedMemoryNoErr(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	arenaSize := os.Getpagesize() * 2
 	bq, err := NewMmapQueue(testDir, SetArenaSize(arenaSize), SetMaxInMemArenas(0))
 	if err != nil || bq == nil {
@@ -614,10 +580,9 @@ func TestLimitedMemoryNoErr(t *testing.T) {
 }
 
 func runTestLimitedMemory(t *testing.T, messageSize, arenaSize, maxInMemArenas int) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Helper()
 
+	testDir := t.TempDir()
 	bq, err := NewMmapQueue(testDir, SetArenaSize(arenaSize),
 		SetMaxInMemArenas(maxInMemArenas))
 	if err != nil {
@@ -630,7 +595,7 @@ func runTestLimitedMemory(t *testing.T, messageSize, arenaSize, maxInMemArenas i
 	}()
 
 	msg := bytes.Repeat([]byte("a"), messageSize)
-	for i := 0; i < 11; i++ {
+	for range 11 {
 		if err := bq.Enqueue(msg); err != nil {
 			t.Fatalf("enqueue failed :: %v", err)
 		}
@@ -638,7 +603,7 @@ func runTestLimitedMemory(t *testing.T, messageSize, arenaSize, maxInMemArenas i
 		checkInMemArenaInvariant(t, bq)
 	}
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		if _, err := bq.Dequeue(); err != nil {
 			t.Fatalf("dequeue failed :: %v", err)
 		}
@@ -646,7 +611,7 @@ func runTestLimitedMemory(t *testing.T, messageSize, arenaSize, maxInMemArenas i
 		checkInMemArenaInvariant(t, bq)
 	}
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		if err := bq.Enqueue(msg); err != nil {
 			t.Fatalf("enqueue failed :: %v", err)
 		}
@@ -668,7 +633,7 @@ func runTestLimitedMemory(t *testing.T, messageSize, arenaSize, maxInMemArenas i
 		bq = bqTemp
 	}
 
-	for i := 0; i < 7; i++ {
+	for range 7 {
 		if poppedMsg, err := bq.Dequeue(); err != nil {
 			t.Fatalf("unable to dequeue :: %v", err)
 		} else if !bytes.Equal(msg, poppedMsg) {
@@ -682,7 +647,7 @@ func runTestLimitedMemory(t *testing.T, messageSize, arenaSize, maxInMemArenas i
 		checkInMemArenaInvariant(t, bq)
 	}
 
-	for i := 0; i < 11; i++ {
+	for range 11 {
 		if _, err := bq.Dequeue(); err != nil {
 			t.Fatalf("dequeue failed :: %v", err)
 		}
@@ -692,40 +657,45 @@ func runTestLimitedMemory(t *testing.T, messageSize, arenaSize, maxInMemArenas i
 }
 
 func TestLimitedMemorySmallMessage(t *testing.T) {
+	t.Parallel()
 	arenaSize := os.Getpagesize() * 2
 	runTestLimitedMemory(t, arenaSize-16, arenaSize, 3)
 }
 
 func TestLimitedMemoryLargeMessage(t *testing.T) {
+	t.Parallel()
 	arenaSize := os.Getpagesize() * 2
 	runTestLimitedMemory(t, arenaSize*4, arenaSize, 3)
 }
 
 func TestLimitedMemoryHugeMessage1(t *testing.T) {
+	t.Parallel()
 	arenaSize := os.Getpagesize() * 2
 	runTestLimitedMemory(t, arenaSize*7-8, arenaSize, 5)
 }
 
 func TestLimitedMemoryHugeMessage2(t *testing.T) {
+	t.Parallel()
 	arenaSize := os.Getpagesize() * 2
 	runTestLimitedMemory(t, arenaSize*7, arenaSize, 5)
 }
 
 func TestLimitedMemoryExactMessage1(t *testing.T) {
+	t.Parallel()
 	arenaSize := os.Getpagesize() * 2
 	runTestLimitedMemory(t, arenaSize*3-8, arenaSize, 5)
 }
 
 func TestLimitedMemoryExactMessage2(t *testing.T) {
+	t.Parallel()
 	arenaSize := os.Getpagesize() * 2
 	runTestLimitedMemory(t, arenaSize-8, arenaSize, 3)
 }
 
 func TestReadWriteString(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	bq, err := NewMmapQueue(testDir, SetArenaSize(8*1024))
 	if err != nil {
 		t.Fatalf("unable to get BigQueue: %v", err)
@@ -787,10 +757,9 @@ func TestReadWriteString(t *testing.T) {
 }
 
 func TestConsumerSmallMessage(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	bq, err := NewMmapQueue(testDir)
 	if err != nil {
 		t.Fatalf("unable to get BigQueue: %v", err)
@@ -834,10 +803,9 @@ func TestConsumerSmallMessage(t *testing.T) {
 }
 
 func TestConsumerReadWriteCornerCases(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	arenaSize := 8 * 1024
 	bq, err := NewMmapQueue(testDir, SetArenaSize(arenaSize))
 	if err != nil {
@@ -901,7 +869,7 @@ func TestConsumerReadWriteCornerCases(t *testing.T) {
 			if poppedMsg, err := c.DequeueString(); err != nil {
 				t.Fatalf("unable to dequeue from consumer :: %v", err)
 			} else if string(msg) != poppedMsg {
-				t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
+				t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), poppedMsg)
 			}
 
 			if !c.IsEmpty() {
@@ -916,10 +884,9 @@ func TestConsumerReadWriteCornerCases(t *testing.T) {
 }
 
 func TestCopyConsumerReadWriteCornerCases(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	arenaSize := 8 * 1024
 	bq, err := NewMmapQueue(testDir, SetArenaSize(arenaSize))
 	if err != nil {
@@ -981,7 +948,7 @@ func TestCopyConsumerReadWriteCornerCases(t *testing.T) {
 			if poppedMsg, err := c.DequeueString(); err != nil {
 				t.Fatalf("unable to dequeue from consumer :: %v", err)
 			} else if string(msg) != poppedMsg {
-				t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), string(poppedMsg))
+				t.Fatalf("unequal messages, eq: %s, dq: %s", string(msg), poppedMsg)
 			}
 
 			if !c.IsEmpty() {
@@ -996,10 +963,9 @@ func TestCopyConsumerReadWriteCornerCases(t *testing.T) {
 }
 
 func TestConsumersFromDifferentQueuesErr(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	bq, err := NewMmapQueue(testDir)
 	if err != nil {
 		t.Fatalf("unable to get BigQueue: %v", err)
@@ -1026,17 +992,16 @@ func TestConsumersFromDifferentQueuesErr(t *testing.T) {
 }
 
 func TestManyConsumers(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	arenaSize := 8 * 1024
 	bq, err := NewMmapQueue(testDir, SetArenaSize(arenaSize))
 	if err != nil {
 		t.Fatalf("unable to get BigQueue: %v", err)
 	}
 
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		_, err := bq.NewConsumer("consumer" + strconv.FormatInt(int64(i), 10))
 		if err != nil {
 			t.Fatalf("error in creating a consumer :: %v", err)
@@ -1052,7 +1017,7 @@ func TestManyConsumers(t *testing.T) {
 		bq = bqTemp
 	}
 
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		_, err := bq.NewConsumer("consumer" + strconv.FormatInt(int64(i), 10))
 		if err != nil {
 			t.Fatalf("error in creating a consumer :: %v", err)
@@ -1070,10 +1035,9 @@ func TestManyConsumers(t *testing.T) {
 }
 
 func TestFlush(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	bq, err := NewMmapQueue(testDir, SetPeriodicFlushOps(3), SetPeriodicFlushDuration(time.Second))
 	if err != nil {
 		t.Fatalf("unable to get BigQueue: %v", err)
@@ -1086,10 +1050,9 @@ func TestFlush(t *testing.T) {
 }
 
 func TestParallel(t *testing.T) {
-	testDir := path.Join(os.TempDir(), fmt.Sprintf("testdir_%d", rand.Intn(1000)))
-	createTestDir(t, testDir)
-	defer deleteTestDir(t, testDir)
+	t.Parallel()
 
+	testDir := t.TempDir()
 	bq, err := NewMmapQueue(testDir, SetArenaSize(8*1024),
 		SetPeriodicFlushDuration(time.Millisecond*10), SetPeriodicFlushOps(10))
 	if err != nil {
@@ -1112,7 +1075,7 @@ func TestParallel(t *testing.T) {
 		defer wg.Done()
 		var emptyCount int64
 		var nonEmptyCount int64
-		for i := 0; i < N; i++ {
+		for range N {
 			if bq.IsEmpty() {
 				emptyCount++
 			} else {
@@ -1123,7 +1086,7 @@ func TestParallel(t *testing.T) {
 
 	flushFunc := func() {
 		defer wg.Done()
-		for i := 0; i < N; i++ {
+		for range N {
 			if err := bq.Flush(); err != nil {
 				errChan <- fmt.Errorf("error while Flush :: %v", err)
 				return
@@ -1133,7 +1096,7 @@ func TestParallel(t *testing.T) {
 
 	enqueueFunc := func() {
 		defer wg.Done()
-		for i := 0; i < N; i++ {
+		for range N {
 			if err := bq.Enqueue([]byte("elem")); err != nil {
 				errChan <- fmt.Errorf("error while Enqueue :: %v", err)
 				return
@@ -1143,7 +1106,7 @@ func TestParallel(t *testing.T) {
 
 	enqueueStringFunc := func() {
 		defer wg.Done()
-		for i := 0; i < N; i++ {
+		for range N {
 			if err := bq.EnqueueString("elem"); err != nil {
 				errChan <- fmt.Errorf("error while Enqueue :: %v", err)
 				return
@@ -1153,7 +1116,7 @@ func TestParallel(t *testing.T) {
 
 	dequeueFunc := func() {
 		defer wg.Done()
-		for i := 0; i < N; i++ {
+		for range N {
 			if elem, err := bq.Dequeue(); err == ErrEmptyQueue {
 				continue
 			} else if err != nil {
@@ -1168,7 +1131,7 @@ func TestParallel(t *testing.T) {
 
 	dequeueStringFunc := func() {
 		defer wg.Done()
-		for i := 0; i < N; i++ {
+		for range N {
 			if elem, err := bq.DequeueString(); err == ErrEmptyQueue {
 				continue
 			} else if err != nil {
@@ -1183,7 +1146,7 @@ func TestParallel(t *testing.T) {
 
 	newConsumerFunc := func() {
 		defer wg.Done()
-		for i := 0; i < N; i++ {
+		for i := range N {
 			c, err := bq.NewConsumer("existing")
 			if err != nil {
 				errChan <- fmt.Errorf("error while NewConsumer :: %v", err)
@@ -1205,7 +1168,7 @@ func TestParallel(t *testing.T) {
 		defer wg.Done()
 		var emptyCount int64
 		var nonEmptyCount int64
-		for i := 0; i < N; i++ {
+		for range N {
 			if c.IsEmpty() {
 				emptyCount++
 			} else {
@@ -1216,7 +1179,7 @@ func TestParallel(t *testing.T) {
 
 	consumerDequeueFunc := func() {
 		defer wg.Done()
-		for i := 0; i < N; i++ {
+		for range N {
 			if elem, err := c.Dequeue(); err == ErrEmptyQueue {
 				continue
 			} else if err != nil {
@@ -1231,7 +1194,7 @@ func TestParallel(t *testing.T) {
 
 	consumerDequeueStringFunc := func() {
 		defer wg.Done()
-		for i := 0; i < N; i++ {
+		for range N {
 			if elem, err := c.DequeueString(); err == ErrEmptyQueue {
 				continue
 			} else if err != nil {

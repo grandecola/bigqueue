@@ -10,6 +10,8 @@ import (
 )
 
 func TestNewArenaNoDir(t *testing.T) {
+	t.Parallel()
+
 	aa, err := newArena(fmt.Sprintf("%d/temp.dat", time.Now().UnixNano()), 100)
 	if aa != nil || err == nil || os.IsExist(err) {
 		t.Fatalf("unexpected return for newArena :: %v", err)
@@ -17,7 +19,9 @@ func TestNewArenaNoDir(t *testing.T) {
 }
 
 func TestNewArenaNoReadPerm(t *testing.T) {
-	fileName := path.Join(os.TempDir(), "temp.dat")
+	t.Parallel()
+
+	fileName := path.Join(os.TempDir(), fmt.Sprintf("%d-temp.dat", time.Now().UnixNano()))
 	defer func() {
 		if err := os.Remove(fileName); err != nil {
 			t.Fatalf("error in deleting file: %v :: %v", fileName, err)
@@ -35,8 +39,10 @@ func TestNewArenaNoReadPerm(t *testing.T) {
 }
 
 func TestNewArenaNoFile(t *testing.T) {
+	t.Parallel()
+
 	arenaSize := 100
-	fileName := path.Join(os.TempDir(), "temp.dat")
+	fileName := path.Join(os.TempDir(), fmt.Sprintf("%d-temp.dat", time.Now().UnixNano()))
 	defer func() {
 		if err := os.Remove(fileName); err != nil {
 			t.Fatalf("error in deleting file: %v :: %v", fileName, err)
@@ -65,8 +71,10 @@ func TestNewArenaNoFile(t *testing.T) {
 }
 
 func TestNewArenaLargerFile(t *testing.T) {
+	t.Parallel()
+
 	arenaSize := 100
-	fileName := path.Join(os.TempDir(), "temp.dat")
+	fileName := path.Join(os.TempDir(), fmt.Sprintf("%d-temp.dat", time.Now().UnixNano()))
 	defer func() {
 		if err := os.Remove(fileName); err != nil {
 			t.Fatalf("error in deleting file: %v :: %v", fileName, err)
@@ -104,6 +112,8 @@ func TestNewArenaLargerFile(t *testing.T) {
 }
 
 func TestNewArenaNoFolder(t *testing.T) {
+	t.Parallel()
+
 	arenaSize := 100
 	aa, err := newArena("1/2/3/4/5/6/aa.dat", arenaSize)
 	if !os.IsNotExist(errors.Unwrap(err)) || aa != nil {

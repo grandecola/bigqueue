@@ -2,9 +2,9 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -29,12 +29,12 @@ type pair struct {
 // The tempPath is used to write intermediate files
 // maxMemSortSize is number of elements that can be sorted directly in memory
 func ExternalSort(inputPath, tempPath, outputPath string, maxMemSortSize int) error {
-	files, err := ioutil.ReadDir(tempPath)
+	files, err := os.ReadDir(tempPath)
 	if err != nil {
 		return fmt.Errorf("unable to read temp directory :: %v", err)
 	}
 	if len(files) != 0 {
-		return fmt.Errorf("non-empty temp directory")
+		return errors.New("non-empty temp directory")
 	}
 
 	log.Println("starting divide step")
@@ -44,10 +44,7 @@ func ExternalSort(inputPath, tempPath, outputPath string, maxMemSortSize int) er
 	}
 
 	log.Println("starting merge step")
-	optimalK := maxMemSortSize * 8 / 128 / 1024 / 1024
-	if optimalK < 2 {
-		optimalK = 2
-	}
+	optimalK := max(maxMemSortSize*8/128/1024/1024, 2)
 
 	oq, err := merge(tempPath, optimalK, iqs)
 	if err != nil {
@@ -138,10 +135,7 @@ func merge(tempPath string, k int, queues []*bigqueue.MmapQueue) (*bigqueue.Mmap
 		log.Printf("iteration %d, # queues %d\n", iteration, len(currentQueues))
 
 		for i := 0; i < len(currentQueues); i += k {
-			lastElem := i + k
-			if lastElem > len(currentQueues) {
-				lastElem = len(currentQueues)
-			}
+			lastElem := min(i+k, len(currentQueues))
 
 			queueList := currentQueues[i:lastElem]
 			mq, err := mergeQueues(queueList, tempPath)
@@ -174,7 +168,7 @@ func mergeQueues(queueList []*bigqueue.MmapQueue, tempPath string) (*bigqueue.Mm
 	k := len(queueList)
 	segTree := make([]pair, 2*k)
 
-	for i := 0; i < k; i++ {
+	for i := range k {
 		if queueList[i].IsEmpty() {
 			segTree[i+k] = pair{maxValue, i}
 			continue
@@ -193,14 +187,16 @@ func mergeQueues(queueList []*bigqueue.MmapQueue, tempPath string) (*bigqueue.Mm
 	}
 
 	for i := k - 1; i > 0; i-- {
-		segTree[i] = min(segTree[2*i], segTree[2*i+1])
+		segTree[i] = minPair(segTree[2*i], segTree[2*i+1])
 	}
 
 	empty := 0
 	for empty < k {
 		top := segTree[1]
 
-		mq.Enqueue([]byte(strconv.Itoa(top.value)))
+		if err := mq.Enqueue([]byte(strconv.Itoa(top.value))); err != nil {
+			return nil, fmt.Errorf("unable to enqueue :: %v", err)
+		}
 
 		index := top.index + k
 		if queueList[top.index].IsEmpty() {
@@ -220,8 +216,8 @@ func mergeQueues(queueList []*bigqueue.MmapQueue, tempPath string) (*bigqueue.Mm
 		}
 
 		for index != 1 {
-			index = index / 2
-			segTree[index] = min(segTree[index*2], segTree[index*2+1])
+			index /= 2
+			segTree[index] = minPair(segTree[index*2], segTree[index*2+1])
 		}
 	}
 
@@ -256,7 +252,7 @@ func getTempDir(tempPath string) string {
 	return queuePath
 }
 
-func min(i, j pair) pair {
+func minPair(i, j pair) pair {
 	if i.value < j.value {
 		return i
 	}
@@ -277,7 +273,9 @@ func writeToFile(oq *bigqueue.MmapQueue, outputPath string) error {
 		if err != nil {
 			return fmt.Errorf("unable to dequeue from bigqueue :: %v", err)
 		}
-		w.WriteString(string(v) + "\n")
+		if _, err := w.WriteString(string(v) + "\n"); err != nil {
+			return fmt.Errorf("error in writing to file :: %v", err)
+		}
 	}
 
 	return w.Flush()
