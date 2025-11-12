@@ -24,7 +24,7 @@ jobs:
           cache-dependency-path: go.sum
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8.0.0
+        uses: golangci/golangci-lint-action@v9.0.0
 
       - name: Run Unit Tests
         run: go test -race -v ./...
