@@ -286,7 +286,7 @@ func BenchmarkEnqueueWithTag(b *testing.B) {
 				b.Fatalf("unable to create bigqueue: %v", err)
 			}
 
-			var tag byte = 1
+			tag := []byte{1}
 			b.ReportAllocs()
 			b.ResetTimer()
 			for range b.N {
@@ -318,7 +318,7 @@ func BenchmarkDequeueWithTag(b *testing.B) {
 				b.Fatalf("unable to create bigqueue: %v", err)
 			}
 
-			var tag byte = 1
+			tag := []byte{1}
 			for range b.N {
 				if err := bq.EnqueueWithTag(param.message, tag); err != nil {
 					b.Fatalf("unable to enqueue: %v", err)

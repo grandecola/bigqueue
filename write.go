@@ -11,16 +11,21 @@ func (q *MmapQueue) Enqueue(message []byte) error {
 	return err
 }
 
-// EnqueueWithTag adds a new slice of byte element to the tail of the queue with an
-// identifier tag byte prepended. The tag can be read back via DequeueWithTag without
-// parsing the full message payload.
-func (q *MmapQueue) EnqueueWithTag(message []byte, tag byte) error {
+// EnqueueWithTag adds a new slice of byte element to the tail of the queue with a
+// tag ([]byte) prepended. The tag can be read back via DequeueWithTag without parsing
+// the full message payload. The tag may be at most 255 bytes long.
+func (q *MmapQueue) EnqueueWithTag(message []byte, tag []byte) error {
+	if len(tag) > 255 {
+		return ErrTagTooLong
+	}
+
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
-	q.tw.tagBuf[0] = tag
+	q.tw.tag = tag
 	q.tw.b = message
 	err := q.enqueue(&q.tw)
+	q.tw.tag = nil
 	q.tw.b = nil
 	return err
 }

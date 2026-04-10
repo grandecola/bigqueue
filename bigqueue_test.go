@@ -1262,7 +1262,7 @@ func TestEnqueueWithTag(t *testing.T) {
 	}()
 
 	msg := []byte("hello world")
-	var tag byte = 42
+	tag := []byte{42}
 	if err := bq.EnqueueWithTag(msg, tag); err != nil {
 		t.Fatalf("EnqueueWithTag failed :: %v", err)
 	}
@@ -1271,8 +1271,8 @@ func TestEnqueueWithTag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DequeueWithTag failed :: %v", err)
 	}
-	if gotTag != tag {
-		t.Fatalf("tag mismatch: expected %d, got %d", tag, gotTag)
+	if !bytes.Equal(gotTag, tag) {
+		t.Fatalf("tag mismatch: expected %v, got %v", tag, gotTag)
 	}
 	if !bytes.Equal(gotMsg, msg) {
 		t.Fatalf("message mismatch: expected %s, got %s", string(msg), string(gotMsg))
@@ -1293,7 +1293,7 @@ func TestDequeueWithTagEmptyQueue(t *testing.T) {
 		}
 	}()
 
-	if msg, tag, err := bq.DequeueWithTag(); err != ErrEmptyQueue || msg != nil || tag != 0 {
+	if msg, tag, err := bq.DequeueWithTag(); err != ErrEmptyQueue || msg != nil || tag != nil {
 		t.Fatalf("DequeueWithTag on empty queue should return ErrEmptyQueue, got err: %v, msg: %v, tag: %v", err, msg, tag)
 	}
 }
@@ -1314,13 +1314,13 @@ func TestEnqueueWithTagMultipleMessages(t *testing.T) {
 
 	type entry struct {
 		msg []byte
-		tag byte
+		tag []byte
 	}
 	entries := []entry{
-		{[]byte("first"), 1},
-		{[]byte("second"), 2},
-		{[]byte("third"), 3},
-		{[]byte(""), 255},
+		{[]byte("first"), []byte{1}},
+		{[]byte("second"), []byte{2}},
+		{[]byte("third"), []byte{3}},
+		{[]byte(""), []byte{255}},
 	}
 
 	for _, e := range entries {
@@ -1334,8 +1334,8 @@ func TestEnqueueWithTagMultipleMessages(t *testing.T) {
 		if err != nil {
 			t.Fatalf("DequeueWithTag failed :: %v", err)
 		}
-		if gotTag != e.tag {
-			t.Fatalf("tag mismatch: expected %d, got %d", e.tag, gotTag)
+		if !bytes.Equal(gotTag, e.tag) {
+			t.Fatalf("tag mismatch: expected %v, got %v", e.tag, gotTag)
 		}
 		if !bytes.Equal(gotMsg, e.msg) {
 			t.Fatalf("message mismatch: expected %s, got %s", string(e.msg), string(gotMsg))
@@ -1363,7 +1363,7 @@ func TestEnqueueWithTagLargeMessage(t *testing.T) {
 
 	// message large enough to span multiple arenas
 	msg := bytes.Repeat([]byte("a"), cDefaultArenaSize+100)
-	var tag byte = 77
+	tag := []byte{77}
 	if err := bq.EnqueueWithTag(msg, tag); err != nil {
 		t.Fatalf("EnqueueWithTag failed :: %v", err)
 	}
@@ -1372,8 +1372,8 @@ func TestEnqueueWithTagLargeMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DequeueWithTag failed :: %v", err)
 	}
-	if gotTag != tag {
-		t.Fatalf("tag mismatch: expected %d, got %d", tag, gotTag)
+	if !bytes.Equal(gotTag, tag) {
+		t.Fatalf("tag mismatch: expected %v, got %v", tag, gotTag)
 	}
 	if !bytes.Equal(gotMsg, msg) {
 		t.Fatalf("message content mismatch for large message")
@@ -1400,7 +1400,7 @@ func TestEnqueueWithTagConsumer(t *testing.T) {
 	}
 
 	msg := []byte("tagged payload")
-	var tag byte = 99
+	tag := []byte{99}
 	if err := bq.EnqueueWithTag(msg, tag); err != nil {
 		t.Fatalf("EnqueueWithTag failed :: %v", err)
 	}
@@ -1409,16 +1409,16 @@ func TestEnqueueWithTagConsumer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("consumer DequeueWithTag failed :: %v", err)
 	}
-	if gotTag != tag {
-		t.Fatalf("tag mismatch: expected %d, got %d", tag, gotTag)
+	if !bytes.Equal(gotTag, tag) {
+		t.Fatalf("tag mismatch: expected %v, got %v", tag, gotTag)
 	}
 	if !bytes.Equal(gotMsg, msg) {
 		t.Fatalf("message mismatch: expected %s, got %s", string(msg), string(gotMsg))
 	}
 }
 
-// TestEnqueueWithTagBoundaryValues verifies that tag values 0 and 255 (boundary bytes) are
-// preserved correctly.
+// TestEnqueueWithTagBoundaryValues verifies that tag boundary values (empty, single byte 0,
+// single byte 255, and multi-byte tags) are preserved correctly.
 func TestEnqueueWithTagBoundaryValues(t *testing.T) {
 	t.Parallel()
 
@@ -1435,11 +1435,11 @@ func TestEnqueueWithTagBoundaryValues(t *testing.T) {
 
 	type entry struct {
 		msg []byte
-		tag byte
+		tag []byte
 	}
 	entries := []entry{
-		{[]byte("tag-zero"), 0},
-		{[]byte("tag-max"), 255},
+		{[]byte("tag-zero"), []byte{0}},
+		{[]byte("tag-max"), []byte{255}},
 	}
 
 	for _, e := range entries {
@@ -1453,8 +1453,8 @@ func TestEnqueueWithTagBoundaryValues(t *testing.T) {
 		if err != nil {
 			t.Fatalf("DequeueWithTag failed :: %v", err)
 		}
-		if gotTag != e.tag {
-			t.Fatalf("tag mismatch: expected %d, got %d", e.tag, gotTag)
+		if !bytes.Equal(gotTag, e.tag) {
+			t.Fatalf("tag mismatch: expected %v, got %v", e.tag, gotTag)
 		}
 		if !bytes.Equal(gotMsg, e.msg) {
 			t.Fatalf("message mismatch: expected %s, got %s", string(e.msg), string(gotMsg))
@@ -1477,7 +1477,7 @@ func TestEnqueueWithTagNilMessage(t *testing.T) {
 		}
 	}()
 
-	var tag byte = 7
+	tag := []byte{7}
 	if err := bq.EnqueueWithTag(nil, tag); err != nil {
 		t.Fatalf("EnqueueWithTag with nil message failed :: %v", err)
 	}
@@ -1486,16 +1486,16 @@ func TestEnqueueWithTagNilMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DequeueWithTag failed :: %v", err)
 	}
-	if gotTag != tag {
-		t.Fatalf("tag mismatch: expected %d, got %d", tag, gotTag)
+	if !bytes.Equal(gotTag, tag) {
+		t.Fatalf("tag mismatch: expected %v, got %v", tag, gotTag)
 	}
 	if len(gotMsg) != 0 {
 		t.Fatalf("expected empty message, got length %d", len(gotMsg))
 	}
 }
 
-// TestEnqueueWithTagArenaOverlap verifies correct behaviour when the tag+data straddles
-// an arena boundary (the tag byte ends up in one arena and the data starts in the next).
+// TestEnqueueWithTagArenaOverlap verifies correct behaviour when the tag-length prefix byte
+// lands at the very last byte of an arena, causing the tag and data to start in the next arena.
 func TestEnqueueWithTagArenaOverlap(t *testing.T) {
 	t.Parallel()
 
@@ -1511,18 +1511,18 @@ func TestEnqueueWithTagArenaOverlap(t *testing.T) {
 		}
 	}()
 
-	// Fill the queue so the next enqueue's tag byte will land at the very end of an
-	// arena. Enqueue writes an 8-byte length header before the payload, so we want
-	// the tail to be at arenaSize-9 before EnqueueWithTag. That way its 8-byte
-	// length header advances the tail to arenaSize-1 and the following tag byte
-	// lands in the final byte of the arena.
+	// Enqueue writes an 8-byte length header before the payload, so we want the tail
+	// to be at offset arenaSize-9 before EnqueueWithTag. That way its 8-byte length
+	// header advances the tail to arenaSize-1 and the 1-byte tag-length prefix lands
+	// in the final byte of arena 0, with the tag byte and data continuing in arena 1.
+	// filler payload size = arenaSize-9 - 8 = arenaSize-17 (length header not counted).
 	filler := bytes.Repeat([]byte("x"), arenaSize-17)
 	if err := bq.Enqueue(filler); err != nil {
 		t.Fatalf("Enqueue filler failed :: %v", err)
 	}
 
 	msg := []byte("boundary-test")
-	var tag byte = 13
+	tag := []byte{13}
 	if err := bq.EnqueueWithTag(msg, tag); err != nil {
 		t.Fatalf("EnqueueWithTag failed :: %v", err)
 	}
@@ -1536,8 +1536,8 @@ func TestEnqueueWithTagArenaOverlap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DequeueWithTag failed :: %v", err)
 	}
-	if gotTag != tag {
-		t.Fatalf("tag mismatch: expected %d, got %d", tag, gotTag)
+	if !bytes.Equal(gotTag, tag) {
+		t.Fatalf("tag mismatch: expected %v, got %v", tag, gotTag)
 	}
 	if !bytes.Equal(gotMsg, msg) {
 		t.Fatalf("message mismatch: expected %s, got %s", string(msg), string(gotMsg))
@@ -1562,7 +1562,7 @@ func TestEnqueueWithTagInterleavedWithEnqueue(t *testing.T) {
 
 	plain := []byte("plain-message")
 	tagged := []byte("tagged-message")
-	var tag byte = 50
+	tag := []byte{50}
 
 	if err := bq.Enqueue(plain); err != nil {
 		t.Fatalf("Enqueue failed :: %v", err)
@@ -1586,8 +1586,8 @@ func TestEnqueueWithTagInterleavedWithEnqueue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DequeueWithTag failed :: %v", err)
 	}
-	if gotTag != tag {
-		t.Fatalf("tag mismatch: expected %d, got %d", tag, gotTag)
+	if !bytes.Equal(gotTag, tag) {
+		t.Fatalf("tag mismatch: expected %v, got %v", tag, gotTag)
 	}
 	if !bytes.Equal(gotMsg, tagged) {
 		t.Fatalf("tagged message mismatch: expected %s, got %s", string(tagged), string(gotMsg))
@@ -1632,12 +1632,12 @@ func TestEnqueueWithTagMultipleConsumers(t *testing.T) {
 
 	type entry struct {
 		msg []byte
-		tag byte
+		tag []byte
 	}
 	entries := []entry{
-		{[]byte("msg-a"), 10},
-		{[]byte("msg-b"), 20},
-		{[]byte("msg-c"), 30},
+		{[]byte("msg-a"), []byte{10}},
+		{[]byte("msg-b"), []byte{20}},
+		{[]byte("msg-c"), []byte{30}},
 	}
 
 	for _, e := range entries {
@@ -1652,8 +1652,8 @@ func TestEnqueueWithTagMultipleConsumers(t *testing.T) {
 			if err != nil {
 				t.Fatalf("consumer DequeueWithTag failed :: %v", err)
 			}
-			if gotTag != e.tag {
-				t.Fatalf("tag mismatch: expected %d, got %d", e.tag, gotTag)
+			if !bytes.Equal(gotTag, e.tag) {
+				t.Fatalf("tag mismatch: expected %v, got %v", e.tag, gotTag)
 			}
 			if !bytes.Equal(gotMsg, e.msg) {
 				t.Fatalf("message mismatch: expected %s, got %s", string(e.msg), string(gotMsg))
@@ -1670,7 +1670,7 @@ func TestEnqueueWithTagPersistence(t *testing.T) {
 	testDir := t.TempDir()
 
 	msg := []byte("persisted payload")
-	var tag byte = 88
+	tag := []byte{88}
 
 	// write
 	bq, err := NewMmapQueue(testDir)
@@ -1699,8 +1699,8 @@ func TestEnqueueWithTagPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DequeueWithTag after reopen failed :: %v", err)
 	}
-	if gotTag != tag {
-		t.Fatalf("tag mismatch after reopen: expected %d, got %d", tag, gotTag)
+	if !bytes.Equal(gotTag, tag) {
+		t.Fatalf("tag mismatch after reopen: expected %v, got %v", tag, gotTag)
 	}
 	if !bytes.Equal(gotMsg, msg) {
 		t.Fatalf("message mismatch after reopen: expected %s, got %s", string(msg), string(gotMsg))
@@ -1710,7 +1710,7 @@ func TestEnqueueWithTagPersistence(t *testing.T) {
 // TestEnqueueWithTagRandomPayloads verifies that EnqueueWithTag and DequeueWithTag preserve
 // exact byte-for-byte data and FIFO order for a wide variety of payload types: random numeric
 // bytes, non-UTF-8 binary sequences, Chinese, Korean, and Japanese encoded text, mixed
-// multibyte payloads, and randomly chosen tag values.
+// multibyte payloads, and randomly chosen tag values — including multi-byte tags.
 func TestEnqueueWithTagRandomPayloads(t *testing.T) {
 	t.Parallel()
 
@@ -1719,7 +1719,7 @@ func TestEnqueueWithTagRandomPayloads(t *testing.T) {
 
 	type entry struct {
 		payload []byte
-		tag     byte
+		tag     []byte
 		label   string
 	}
 
@@ -1734,34 +1734,38 @@ func TestEnqueueWithTagRandomPayloads(t *testing.T) {
 
 	entries := []entry{
 		// Numeric (ASCII digit sequences)
-		{[]byte("1234567890"), 0x01, "numeric-ascii"},
-		{[]byte("9876543210987654321"), 0x02, "long-numeric-ascii"},
+		{[]byte("1234567890"), []byte{0x01}, "numeric-ascii"},
+		{[]byte("9876543210987654321"), []byte{0x02}, "long-numeric-ascii"},
 		// Non-UTF-8 binary sequences (high bytes, invalid lead bytes)
-		{[]byte{0xFF, 0xFE, 0x00, 0xD8, 0x00}, 0x10, "non-utf8-bom-like"},
-		{[]byte{0x80, 0x81, 0x82, 0xFE, 0xFF}, 0x11, "non-utf8-high-bytes"},
-		{randomBytes(16), 0x12, "non-utf8-random-16"},
-		{randomBytes(64), 0x13, "non-utf8-random-64"},
+		{[]byte{0xFF, 0xFE, 0x00, 0xD8, 0x00}, []byte{0x10}, "non-utf8-bom-like"},
+		{[]byte{0x80, 0x81, 0x82, 0xFE, 0xFF}, []byte{0x11}, "non-utf8-high-bytes"},
+		{randomBytes(16), []byte{0x12}, "non-utf8-random-16"},
+		{randomBytes(64), []byte{0x13}, "non-utf8-random-64"},
 		// Chinese (Simplified & Traditional)
-		{[]byte("你好世界"), 0x20, "chinese-simplified"},
-		{[]byte("繁體中文測試"), 0x21, "chinese-traditional"},
-		{[]byte("中华人民共和国"), 0x22, "chinese-long"},
+		{[]byte("你好世界"), []byte{0x20}, "chinese-simplified"},
+		{[]byte("繁體中文測試"), []byte{0x21}, "chinese-traditional"},
+		{[]byte("中华人民共和国"), []byte{0x22}, "chinese-long"},
 		// Korean
-		{[]byte("안녕하세요"), 0x30, "korean-hello"},
-		{[]byte("대한민국"), 0x31, "korean-country"},
-		{[]byte("가나다라마바사아자차카타파하"), 0x32, "korean-alphabet"},
+		{[]byte("안녕하세요"), []byte{0x30}, "korean-hello"},
+		{[]byte("대한민국"), []byte{0x31}, "korean-country"},
+		{[]byte("가나다라마바사아자차카타파하"), []byte{0x32}, "korean-alphabet"},
 		// Japanese
-		{[]byte("こんにちは"), 0x40, "japanese-hiragana"},
-		{[]byte("コンニチハ"), 0x41, "japanese-katakana"},
-		{[]byte("日本語テスト"), 0x42, "japanese-mixed"},
-		{[]byte("漢字テスト"), 0x43, "japanese-kanji"},
+		{[]byte("こんにちは"), []byte{0x40}, "japanese-hiragana"},
+		{[]byte("コンニチハ"), []byte{0x41}, "japanese-katakana"},
+		{[]byte("日本語テスト"), []byte{0x42}, "japanese-mixed"},
+		{[]byte("漢字テスト"), []byte{0x43}, "japanese-kanji"},
 		// Mixed multibyte in one payload
-		{[]byte("hello 世界 안녕 こんにちは 🌏"), 0x50, "mixed-multilingual"},
-		// Boundary tag values with multibyte payload
-		{[]byte("境界値テスト"), 0x00, "tag-zero-multibyte"},
-		{[]byte("边界值测试"), 0xFF, "tag-max-multibyte"},
-		// Random tag values with random binary payloads
-		{randomBytes(128), byte(rng.Intn(256)), "random-128"},
-		{randomBytes(512), byte(rng.Intn(256)), "random-512"},
+		{[]byte("hello 世界 안녕 こんにちは 🌏"), []byte{0x50}, "mixed-multilingual"},
+		// Boundary single-byte tag values
+		{[]byte("境界値テスト"), []byte{0x00}, "tag-zero-multibyte"},
+		{[]byte("边界值测试"), []byte{0xFF}, "tag-max-multibyte"},
+		// Multi-byte tags (key advantage of []byte over byte)
+		{[]byte("multi-byte-tag-2"), []byte{0xAB, 0xCD}, "multi-byte-tag-2"},
+		{[]byte("multi-byte-tag-4"), []byte{0x01, 0x02, 0x03, 0x04}, "multi-byte-tag-4"},
+		{[]byte("string-tag"), []byte("TYPE"), "string-tag"},
+		// Random tags with random binary payloads
+		{randomBytes(128), randomBytes(3), "random-tag-128"},
+		{randomBytes(512), randomBytes(5), "random-tag-512"},
 	}
 
 	testDir := t.TempDir()
@@ -1788,8 +1792,8 @@ func TestEnqueueWithTagRandomPayloads(t *testing.T) {
 		if err != nil {
 			t.Fatalf("[%d/%s] DequeueWithTag failed :: %v", i, e.label, err)
 		}
-		if gotTag != e.tag {
-			t.Fatalf("[%d/%s] tag mismatch: want 0x%02x, got 0x%02x", i, e.label, e.tag, gotTag)
+		if !bytes.Equal(gotTag, e.tag) {
+			t.Fatalf("[%d/%s] tag mismatch: want %v, got %v", i, e.label, e.tag, gotTag)
 		}
 		if !bytes.Equal(gotMsg, e.payload) {
 			t.Fatalf("[%d/%s] payload mismatch: want %q (%d bytes), got %q (%d bytes)",

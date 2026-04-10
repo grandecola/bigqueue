@@ -18,8 +18,8 @@ func (c *Consumer) Dequeue() ([]byte, error) {
 }
 
 // DequeueWithTag removes an element from the queue and returns the message and its
-// identifier tag byte. The message was expected to be enqueued via EnqueueWithTag.
-func (c *Consumer) DequeueWithTag() ([]byte, byte, error) {
+// tag ([]byte). The message was expected to be enqueued via EnqueueWithTag.
+func (c *Consumer) DequeueWithTag() ([]byte, []byte, error) {
 	return c.mq.dequeueWithTag(c.base)
 }
 
