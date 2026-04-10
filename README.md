@@ -84,6 +84,38 @@ Check whether bigqueue has non zero elements:
 isEmpty := bq.IsEmpty()
 ```
 
+### Tagged Messages API
+`EnqueueWithTag` prepends a tag (`[]byte`, up to 255 bytes) to a message, enabling
+consumers to identify the message type during dequeue **without parsing the payload**.
+
+Write a tagged message:
+```go
+// Tag can be any []byte: a single byte, a multi-byte integer, or a string key.
+err := bq.EnqueueWithTag([]byte(`{"id":1,"item":"book"}`), []byte("ORDER"))
+```
+
+Read a tagged message:
+```go
+payload, tag, err := bq.DequeueWithTag()
+```
+
+Route messages by tag without deserializing the payload:
+```go
+switch {
+case bytes.Equal(tag, []byte("ORDER")):
+    // handle order
+case bytes.Equal(tag, []byte("PAYMENT")):
+    // handle payment
+}
+```
+
+A consumer can also use the tagged API:
+```go
+payload, tag, err := consumer.DequeueWithTag()
+```
+
+See the full runnable example in [`examples/tagged/tagged.go`](examples/tagged/tagged.go).
+
 ### Advanced API
 bigqueue allows reading data from bigqueue using consumers similar to Kafka. This allows
 multiple consumers from reading data at different offsets (not in thread safe manner yet).
