@@ -1512,13 +1512,11 @@ func TestEnqueueWithTagArenaOverlap(t *testing.T) {
 	}()
 
 	// Fill the queue so the next enqueue's tag byte will land at the very end of an
-	// arena. arenaSize-8 bytes of data + 8 bytes length header = exactly one arena.
-	// The next EnqueueWithTag will write its 8-byte length at offset 0 of arena 1,
-	// pushing the tag+data to start exactly at offset 8, which is still in arena 1
-	// unless we craft the sizes more carefully. We instead use arenaSize-9 so the
-	// next write's length header fills the remaining 9 bytes (8 length + 1 tag) and
-	// the tag sits at the arena boundary.
-	filler := bytes.Repeat([]byte("x"), arenaSize-9)
+	// arena. Enqueue writes an 8-byte length header before the payload, so we want
+	// the tail to be at arenaSize-9 before EnqueueWithTag. That way its 8-byte
+	// length header advances the tail to arenaSize-1 and the following tag byte
+	// lands in the final byte of the arena.
+	filler := bytes.Repeat([]byte("x"), arenaSize-17)
 	if err := bq.Enqueue(filler); err != nil {
 		t.Fatalf("Enqueue filler failed :: %v", err)
 	}
