@@ -33,6 +33,52 @@ func (bw *bytesWriter) writeTo(aa *mmap.File, offset, index int) int {
 	return n
 }
 
+// taggedBytesWriter holds a tag ([]byte) and a data slice and satisfies the bigqueue.writer
+// interface. The wire layout written per message is:
+//
+//	[1-byte tag-length | tag bytes... | data bytes...]
+//
+// This allows DequeueWithTag to recover both the tag and the original payload without
+// allocating any extra memory.
+type taggedBytesWriter struct {
+	tag []byte
+	b   []byte
+}
+
+// len returns the total number of bytes that taggedBytesWriter will write
+// (1-byte tag-length + tag + data).
+func (tw *taggedBytesWriter) len() int {
+	return 1 + len(tw.tag) + len(tw.b)
+}
+
+// writeTo writes the tag-length byte, tag bytes, and data bytes into the arena starting
+// at offset. index is the total number of bytes already written (across previous arenas).
+// Each call writes at most one logical segment (tag-len byte, tag bytes, or data bytes)
+// so the writeBytes loop can handle arena-boundary transitions between segments.
+// It returns the number of bytes written in this call.
+func (tw *taggedBytesWriter) writeTo(aa *mmap.File, offset, index int) int {
+	tagLen := len(tw.tag)
+
+	// Phase 0: write 1-byte tag-length prefix (overall index 0).
+	if index == 0 {
+		tagLenBuf := [1]byte{byte(tagLen)}
+		n, _ := aa.WriteAt(tagLenBuf[:], int64(offset))
+		return n
+	}
+
+	// Phase 1: write tag bytes (overall indices 1 .. tagLen).
+	if index < 1+tagLen {
+		tagStart := index - 1
+		n, _ := aa.WriteAt(tw.tag[tagStart:], int64(offset))
+		return n
+	}
+
+	// Phase 2: write data bytes (overall indices 1+tagLen ..).
+	dataStart := index - 1 - tagLen
+	n, _ := aa.WriteAt(tw.b[dataStart:], int64(offset))
+	return n
+}
+
 // stringWriter holds a string and satisfies bigqueue.writer interface.
 type stringWriter struct {
 	s string

@@ -20,6 +20,13 @@ var (
 	// ErrDifferentQueues is returned when caller wants to copy
 	// offsets from a consumer from a different queue.
 	ErrDifferentQueues = errors.New("consumers from different queues")
+	// ErrTagTooLong is returned when the tag slice passed to EnqueueWithTag
+	// exceeds the maximum allowed length of 255 bytes.
+	ErrTagTooLong = errors.New("bigqueue: tag exceeds maximum length of 255 bytes")
+	// ErrInvalidTaggedMessage is returned by DequeueWithTag when the stored
+	// payload does not contain a valid tag-length prefix, indicating the message
+	// was not written by EnqueueWithTag or that the data is corrupt.
+	ErrInvalidTaggedMessage = errors.New("bigqueue: invalid tagged message")
 )
 
 // MmapQueue implements Queue interface.
@@ -40,6 +47,7 @@ type MmapQueue struct {
 	sr stringReader
 	bw bytesWriter
 	sw stringWriter
+	tw taggedBytesWriter
 }
 
 // NewMmapQueue constructs a new persistent queue.
