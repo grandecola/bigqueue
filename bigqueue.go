@@ -40,6 +40,7 @@ type MmapQueue struct {
 	sr stringReader
 	bw bytesWriter
 	sw stringWriter
+	tw taggedBytesWriter
 }
 
 // NewMmapQueue constructs a new persistent queue.

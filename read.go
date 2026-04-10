@@ -46,6 +46,30 @@ func (q *MmapQueue) dequeue(base int64) ([]byte, error) {
 	return r, nil
 }
 
+// DequeueWithTag removes an element from the queue and returns the message and its
+// identifier tag byte. The message was expected to be enqueued via EnqueueWithTag.
+// This function uses the default consumer to consume from the queue.
+func (q *MmapQueue) DequeueWithTag() ([]byte, byte, error) {
+	return q.dequeueWithTag(q.dc)
+}
+
+func (q *MmapQueue) dequeueWithTag(base int64) ([]byte, byte, error) {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+
+	if err := q.dequeueReader(&q.br, base); err != nil {
+		q.br.b = nil
+		return nil, 0, err
+	}
+	r := q.br.b
+	q.br.b = nil
+
+	if len(r) == 0 {
+		return r, 0, nil
+	}
+	return r[1:], r[0], nil
+}
+
 // DequeueString removes a string element from the queue and returns it.
 // This function uses the default consumer to consume from the queue.
 func (q *MmapQueue) DequeueString() (string, error) {

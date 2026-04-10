@@ -1246,3 +1246,173 @@ func TestParallel(t *testing.T) {
 		t.FailNow()
 	}
 }
+
+func TestEnqueueWithTag(t *testing.T) {
+	t.Parallel()
+
+	testDir := t.TempDir()
+	bq, err := NewMmapQueue(testDir)
+	if err != nil {
+		t.Fatalf("unable to get BigQueue :: %v", err)
+	}
+	defer func() {
+		if err := bq.Close(); err != nil {
+			t.Fatalf("error in closing bigqueue :: %v", err)
+		}
+	}()
+
+	msg := []byte("hello world")
+	var tag byte = 42
+	if err := bq.EnqueueWithTag(msg, tag); err != nil {
+		t.Fatalf("EnqueueWithTag failed :: %v", err)
+	}
+
+	gotMsg, gotTag, err := bq.DequeueWithTag()
+	if err != nil {
+		t.Fatalf("DequeueWithTag failed :: %v", err)
+	}
+	if gotTag != tag {
+		t.Fatalf("tag mismatch: expected %d, got %d", tag, gotTag)
+	}
+	if !bytes.Equal(gotMsg, msg) {
+		t.Fatalf("message mismatch: expected %s, got %s", string(msg), string(gotMsg))
+	}
+}
+
+func TestDequeueWithTagEmptyQueue(t *testing.T) {
+	t.Parallel()
+
+	testDir := t.TempDir()
+	bq, err := NewMmapQueue(testDir)
+	if err != nil {
+		t.Fatalf("unable to get BigQueue :: %v", err)
+	}
+	defer func() {
+		if err := bq.Close(); err != nil {
+			t.Fatalf("error in closing bigqueue :: %v", err)
+		}
+	}()
+
+	if msg, tag, err := bq.DequeueWithTag(); err != ErrEmptyQueue || msg != nil || tag != 0 {
+		t.Fatalf("DequeueWithTag on empty queue should return ErrEmptyQueue, got err: %v, msg: %v, tag: %v", err, msg, tag)
+	}
+}
+
+func TestEnqueueWithTagMultipleMessages(t *testing.T) {
+	t.Parallel()
+
+	testDir := t.TempDir()
+	bq, err := NewMmapQueue(testDir)
+	if err != nil {
+		t.Fatalf("unable to get BigQueue :: %v", err)
+	}
+	defer func() {
+		if err := bq.Close(); err != nil {
+			t.Fatalf("error in closing bigqueue :: %v", err)
+		}
+	}()
+
+	type entry struct {
+		msg []byte
+		tag byte
+	}
+	entries := []entry{
+		{[]byte("first"), 1},
+		{[]byte("second"), 2},
+		{[]byte("third"), 3},
+		{[]byte(""), 255},
+	}
+
+	for _, e := range entries {
+		if err := bq.EnqueueWithTag(e.msg, e.tag); err != nil {
+			t.Fatalf("EnqueueWithTag failed :: %v", err)
+		}
+	}
+
+	for _, e := range entries {
+		gotMsg, gotTag, err := bq.DequeueWithTag()
+		if err != nil {
+			t.Fatalf("DequeueWithTag failed :: %v", err)
+		}
+		if gotTag != e.tag {
+			t.Fatalf("tag mismatch: expected %d, got %d", e.tag, gotTag)
+		}
+		if !bytes.Equal(gotMsg, e.msg) {
+			t.Fatalf("message mismatch: expected %s, got %s", string(e.msg), string(gotMsg))
+		}
+	}
+
+	if !bq.IsEmpty() {
+		t.Fatalf("queue should be empty")
+	}
+}
+
+func TestEnqueueWithTagLargeMessage(t *testing.T) {
+	t.Parallel()
+
+	testDir := t.TempDir()
+	bq, err := NewMmapQueue(testDir)
+	if err != nil {
+		t.Fatalf("unable to get BigQueue :: %v", err)
+	}
+	defer func() {
+		if err := bq.Close(); err != nil {
+			t.Fatalf("error in closing bigqueue :: %v", err)
+		}
+	}()
+
+	// message large enough to span multiple arenas
+	msg := bytes.Repeat([]byte("a"), cDefaultArenaSize+100)
+	var tag byte = 77
+	if err := bq.EnqueueWithTag(msg, tag); err != nil {
+		t.Fatalf("EnqueueWithTag failed :: %v", err)
+	}
+
+	gotMsg, gotTag, err := bq.DequeueWithTag()
+	if err != nil {
+		t.Fatalf("DequeueWithTag failed :: %v", err)
+	}
+	if gotTag != tag {
+		t.Fatalf("tag mismatch: expected %d, got %d", tag, gotTag)
+	}
+	if !bytes.Equal(gotMsg, msg) {
+		t.Fatalf("message content mismatch for large message")
+	}
+}
+
+func TestEnqueueWithTagConsumer(t *testing.T) {
+	t.Parallel()
+
+	testDir := t.TempDir()
+	bq, err := NewMmapQueue(testDir)
+	if err != nil {
+		t.Fatalf("unable to get BigQueue :: %v", err)
+	}
+	defer func() {
+		if err := bq.Close(); err != nil {
+			t.Fatalf("error in closing bigqueue :: %v", err)
+		}
+	}()
+
+	c, err := bq.NewConsumer("tagged-consumer")
+	if err != nil {
+		t.Fatalf("unable to create consumer :: %v", err)
+	}
+
+	msg := []byte("tagged payload")
+	var tag byte = 99
+	if err := bq.EnqueueWithTag(msg, tag); err != nil {
+		t.Fatalf("EnqueueWithTag failed :: %v", err)
+	}
+
+	gotMsg, gotTag, err := c.DequeueWithTag()
+	if err != nil {
+		t.Fatalf("consumer DequeueWithTag failed :: %v", err)
+	}
+	if gotTag != tag {
+		t.Fatalf("tag mismatch: expected %d, got %d", tag, gotTag)
+	}
+	if !bytes.Equal(gotMsg, msg) {
+		t.Fatalf("message mismatch: expected %s, got %s", string(msg), string(gotMsg))
+	}
+}

@@ -33,6 +33,36 @@ func (bw *bytesWriter) writeTo(aa *mmap.File, offset, index int) int {
 	return n
 }
 
+// taggedBytesWriter holds a tag byte and a slice of bytes and satisfies the bigqueue.writer
+// interface. The tag byte is written before the data, allowing consumers to identify message
+// types during dequeue without parsing the full payload.
+type taggedBytesWriter struct {
+	tagBuf [1]byte
+	b      []byte
+}
+
+// len returns the length of data that taggedBytesWriter holds (tag + data).
+func (tw *taggedBytesWriter) len() int {
+	return 1 + len(tw.b)
+}
+
+// writeTo writes the tag byte followed by the data into the arena starting at offset.
+// Because the data may span multiple arenas, index tracks the total bytes written so far.
+func (tw *taggedBytesWriter) writeTo(aa *mmap.File, offset, index int) int {
+	if index == 0 {
+		n, _ := aa.WriteAt(tw.tagBuf[:], int64(offset))
+		if n < 1 {
+			return 0
+		}
+		n2, _ := aa.WriteAt(tw.b, int64(offset+1))
+		return 1 + n2
+	}
+	// Tag byte already written; continue writing remaining data bytes.
+	dataIndex := index - 1
+	n, _ := aa.WriteAt(tw.b[dataIndex:], int64(offset))
+	return n
+}
+
 // stringWriter holds a string and satisfies bigqueue.writer interface.
 type stringWriter struct {
 	s string
