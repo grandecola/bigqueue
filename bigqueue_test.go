@@ -1708,3 +1708,98 @@ func TestEnqueueWithTagPersistence(t *testing.T) {
 		t.Fatalf("message mismatch after reopen: expected %s, got %s", string(msg), string(gotMsg))
 	}
 }
+
+// TestEnqueueWithTagRandomPayloads verifies that EnqueueWithTag and DequeueWithTag preserve
+// exact byte-for-byte data and FIFO order for a wide variety of payload types: random numeric
+// bytes, non-UTF-8 binary sequences, Chinese, Korean, and Japanese encoded text, mixed
+// multibyte payloads, and randomly chosen tag values.
+func TestEnqueueWithTagRandomPayloads(t *testing.T) {
+	t.Parallel()
+
+	// Use a fixed seed for reproducibility while covering a broad character space.
+	rng := rand.New(rand.NewSource(42))
+
+	type entry struct {
+		payload []byte
+		tag     byte
+		label   string
+	}
+
+	// Helper: random bytes of the given length that are not necessarily valid UTF-8.
+	randomBytes := func(n int) []byte {
+		b := make([]byte, n)
+		for i := range b {
+			b[i] = byte(rng.Intn(256))
+		}
+		return b
+	}
+
+	entries := []entry{
+		// Numeric (ASCII digit sequences)
+		{[]byte("1234567890"), 0x01, "numeric-ascii"},
+		{[]byte("9876543210987654321"), 0x02, "long-numeric-ascii"},
+		// Non-UTF-8 binary sequences (high bytes, invalid lead bytes)
+		{[]byte{0xFF, 0xFE, 0x00, 0xD8, 0x00}, 0x10, "non-utf8-bom-like"},
+		{[]byte{0x80, 0x81, 0x82, 0xFE, 0xFF}, 0x11, "non-utf8-high-bytes"},
+		{randomBytes(16), 0x12, "non-utf8-random-16"},
+		{randomBytes(64), 0x13, "non-utf8-random-64"},
+		// Chinese (Simplified & Traditional)
+		{[]byte("你好世界"), 0x20, "chinese-simplified"},
+		{[]byte("繁體中文測試"), 0x21, "chinese-traditional"},
+		{[]byte("中华人民共和国"), 0x22, "chinese-long"},
+		// Korean
+		{[]byte("안녕하세요"), 0x30, "korean-hello"},
+		{[]byte("대한민국"), 0x31, "korean-country"},
+		{[]byte("가나다라마바사아자차카타파하"), 0x32, "korean-alphabet"},
+		// Japanese
+		{[]byte("こんにちは"), 0x40, "japanese-hiragana"},
+		{[]byte("コンニチハ"), 0x41, "japanese-katakana"},
+		{[]byte("日本語テスト"), 0x42, "japanese-mixed"},
+		{[]byte("漢字テスト"), 0x43, "japanese-kanji"},
+		// Mixed multibyte in one payload
+		{[]byte("hello 世界 안녕 こんにちは 🌏"), 0x50, "mixed-multilingual"},
+		// Boundary tag values with multibyte payload
+		{[]byte("境界値テスト"), 0x00, "tag-zero-multibyte"},
+		{[]byte("边界值测试"), 0xFF, "tag-max-multibyte"},
+		// Random tag values with random binary payloads
+		{randomBytes(128), byte(rng.Intn(256)), "random-128"},
+		{randomBytes(512), byte(rng.Intn(256)), "random-512"},
+	}
+
+	testDir := t.TempDir()
+	bq, err := NewMmapQueue(testDir)
+	if err != nil {
+		t.Fatalf("unable to create BigQueue :: %v", err)
+	}
+	defer func() {
+		if err := bq.Close(); err != nil {
+			t.Fatalf("error closing bigqueue :: %v", err)
+		}
+	}()
+
+	// Enqueue all entries in order.
+	for _, e := range entries {
+		if err := bq.EnqueueWithTag(e.payload, e.tag); err != nil {
+			t.Fatalf("[%s] EnqueueWithTag failed :: %v", e.label, err)
+		}
+	}
+
+	// Dequeue all entries and verify exact byte equality and FIFO order.
+	for i, e := range entries {
+		gotMsg, gotTag, err := bq.DequeueWithTag()
+		if err != nil {
+			t.Fatalf("[%d/%s] DequeueWithTag failed :: %v", i, e.label, err)
+		}
+		if gotTag != e.tag {
+			t.Fatalf("[%d/%s] tag mismatch: want 0x%02x, got 0x%02x", i, e.label, e.tag, gotTag)
+		}
+		if !bytes.Equal(gotMsg, e.payload) {
+			t.Fatalf("[%d/%s] payload mismatch: want %q (%d bytes), got %q (%d bytes)",
+				i, e.label, e.payload, len(e.payload), gotMsg, len(gotMsg))
+		}
+	}
+
+	if !bq.IsEmpty() {
+		t.Fatalf("queue should be empty after dequeuing all entries")
+	}
+}
