@@ -132,7 +132,7 @@ func TestEnqueueLargeMessage(t *testing.T) {
 		}
 	}()
 
-	msg := make([]byte, 0)
+	msg := make([]byte, 0, cDefaultArenaSize-8)
 	for range cDefaultArenaSize - 8 {
 		m := []byte("a")
 		msg = append(msg, m...)
@@ -166,7 +166,7 @@ func TestEnqueueOverlapLength(t *testing.T) {
 		}
 	}()
 
-	msg1 := make([]byte, 0)
+	msg1 := make([]byte, 0, cDefaultArenaSize-12)
 	for range cDefaultArenaSize - 12 {
 		m := []byte("a")
 		msg1 = append(msg1, m...)
@@ -175,7 +175,7 @@ func TestEnqueueOverlapLength(t *testing.T) {
 		t.Fatalf("enqueue failed :: %v", err)
 	}
 
-	msg2 := make([]byte, 0)
+	msg2 := make([]byte, 0, cDefaultArenaSize-4)
 	for range cDefaultArenaSize - 4 {
 		m := []byte("a")
 		msg2 = append(msg2, m...)
@@ -216,7 +216,7 @@ func TestEnqueueLargeNumberOfMessages(t *testing.T) {
 	}()
 
 	numMessages := 10
-	lengths := make([]int, 0)
+	lengths := make([]int, 0, numMessages)
 	alphabets := "abcdefghijklmnopqrstuvwxyz"
 	for range numMessages {
 		msgLen := rand.Intn(cDefaultArenaSize) + cDefaultArenaSize
@@ -1742,23 +1742,49 @@ func TestEnqueueWithTagRandomPayloads(t *testing.T) {
 		{randomBytes(16), []byte{0x12}, "non-utf8-random-16"},
 		{randomBytes(64), []byte{0x13}, "non-utf8-random-64"},
 		// Chinese (Simplified & Traditional)
-		{[]byte("你好世界"), []byte{0x20}, "chinese-simplified"},
-		{[]byte("繁體中文測試"), []byte{0x21}, "chinese-traditional"},
-		{[]byte("中华人民共和国"), []byte{0x22}, "chinese-long"},
+		{[]byte("\xe4\xbd\xa0\xe5\xa5\xbd\xe4\xb8\x96\xe7\x95\x8c"), []byte{0x20}, "chinese-simplified"},
+		{
+			[]byte("\xe7\xb9\x81\xe9\xab\x94\xe4\xb8\xad\xe6\x96\x87\xe6\xb8\xac\xe8\xa9\xa6"),
+			[]byte{0x21},
+			"chinese-traditional",
+		},
+		{
+			[]byte("\xe4\xb8\xad\xe5\x8d\x8e\xe4\xba\xba\xe6\xb0\x91\xe5\x85\xb1\xe5\x92\x8c\xe5\x9b\xbd"),
+			[]byte{0x22},
+			"chinese-long",
+		},
 		// Korean
-		{[]byte("안녕하세요"), []byte{0x30}, "korean-hello"},
-		{[]byte("대한민국"), []byte{0x31}, "korean-country"},
-		{[]byte("가나다라마바사아자차카타파하"), []byte{0x32}, "korean-alphabet"},
+		{[]byte("\xec\x95\x88\xeb\x85\x95\xed\x95\x98\xec\x84\xb8\xec\x9a\x94"), []byte{0x30}, "korean-hello"},
+		{[]byte("\xeb\x8c\x80\xed\x95\x9c\xeb\xaf\xbc\xea\xb5\xad"), []byte{0x31}, "korean-country"},
+		{
+			[]byte("\xea\xb0\x80\xeb\x82\x98\xeb\x8b\xa4\xeb\x9d\xbc\xeb\xa7\x88\xeb\xb0\x94\xec\x82\xac" +
+				"\xec\x95\x84\xec\x9e\x90\xec\xb0\xa8\xec\xb9\xb4\xed\x83\x80\xed\x8c\x8c\xed\x95\x98"),
+			[]byte{0x32},
+			"korean-alphabet",
+		},
 		// Japanese
-		{[]byte("こんにちは"), []byte{0x40}, "japanese-hiragana"},
-		{[]byte("コンニチハ"), []byte{0x41}, "japanese-katakana"},
-		{[]byte("日本語テスト"), []byte{0x42}, "japanese-mixed"},
-		{[]byte("漢字テスト"), []byte{0x43}, "japanese-kanji"},
+		{[]byte("\xe3\x81\x93\xe3\x82\x93\xe3\x81\xab\xe3\x81\xa1\xe3\x81\xaf"), []byte{0x40}, "japanese-hiragana"},
+		{[]byte("\xe3\x82\xb3\xe3\x83\xb3\xe3\x83\x8b\xe3\x83\x81\xe3\x83\x8f"), []byte{0x41}, "japanese-katakana"},
+		{[]byte("\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e\xe3\x83\x86\xe3\x82\xb9\xe3\x83\x88"), []byte{0x42}, "japanese-mixed"},
+		{[]byte("\xe6\xbc\xa2\xe5\xad\x97\xe3\x83\x86\xe3\x82\xb9\xe3\x83\x88"), []byte{0x43}, "japanese-kanji"},
 		// Mixed multibyte in one payload
-		{[]byte("hello 世界 안녕 こんにちは 🌏"), []byte{0x50}, "mixed-multilingual"},
+		{
+			[]byte("hello \xe4\xb8\x96\xe7\x95\x8c \xec\x95\x88\xeb\x85\x95 " +
+				"\xe3\x81\x93\xe3\x82\x93\xe3\x81\xab\xe3\x81\xa1\xe3\x81\xaf \xf0\x9f\x8c\x8d"),
+			[]byte{0x50},
+			"mixed-multilingual",
+		},
 		// Boundary single-byte tag values
-		{[]byte("境界値テスト"), []byte{0x00}, "tag-zero-multibyte"},
-		{[]byte("边界值测试"), []byte{0xFF}, "tag-max-multibyte"},
+		{
+			[]byte("\xe5\xa2\x83\xe7\x95\x8c\xe5\x80\xa4\xe3\x83\x86\xe3\x82\xb9\xe3\x83\x88"),
+			[]byte{0x00},
+			"tag-zero-multibyte",
+		},
+		{
+			[]byte("\xe8\xb2\xbb\xe7\x95\x8c\xe5\x80\xa4\xe6\xb8\xac\xe8\xa9\xa6"),
+			[]byte{0xFF},
+			"tag-max-multibyte",
+		},
 		// Multi-byte tags (key advantage of []byte over byte)
 		{[]byte("multi-byte-tag-2"), []byte{0xAB, 0xCD}, "multi-byte-tag-2"},
 		{[]byte("multi-byte-tag-4"), []byte{0x01, 0x02, 0x03, 0x04}, "multi-byte-tag-4"},
