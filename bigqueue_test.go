@@ -1416,3 +1416,295 @@ func TestEnqueueWithTagConsumer(t *testing.T) {
 		t.Fatalf("message mismatch: expected %s, got %s", string(msg), string(gotMsg))
 	}
 }
+
+// TestEnqueueWithTagBoundaryValues verifies that tag values 0 and 255 (boundary bytes) are
+// preserved correctly.
+func TestEnqueueWithTagBoundaryValues(t *testing.T) {
+	t.Parallel()
+
+	testDir := t.TempDir()
+	bq, err := NewMmapQueue(testDir)
+	if err != nil {
+		t.Fatalf("unable to get BigQueue :: %v", err)
+	}
+	defer func() {
+		if err := bq.Close(); err != nil {
+			t.Fatalf("error in closing bigqueue :: %v", err)
+		}
+	}()
+
+	type entry struct {
+		msg []byte
+		tag byte
+	}
+	entries := []entry{
+		{[]byte("tag-zero"), 0},
+		{[]byte("tag-max"), 255},
+	}
+
+	for _, e := range entries {
+		if err := bq.EnqueueWithTag(e.msg, e.tag); err != nil {
+			t.Fatalf("EnqueueWithTag failed :: %v", err)
+		}
+	}
+
+	for _, e := range entries {
+		gotMsg, gotTag, err := bq.DequeueWithTag()
+		if err != nil {
+			t.Fatalf("DequeueWithTag failed :: %v", err)
+		}
+		if gotTag != e.tag {
+			t.Fatalf("tag mismatch: expected %d, got %d", e.tag, gotTag)
+		}
+		if !bytes.Equal(gotMsg, e.msg) {
+			t.Fatalf("message mismatch: expected %s, got %s", string(e.msg), string(gotMsg))
+		}
+	}
+}
+
+// TestEnqueueWithTagNilMessage verifies that a nil message with a tag is handled correctly.
+func TestEnqueueWithTagNilMessage(t *testing.T) {
+	t.Parallel()
+
+	testDir := t.TempDir()
+	bq, err := NewMmapQueue(testDir)
+	if err != nil {
+		t.Fatalf("unable to get BigQueue :: %v", err)
+	}
+	defer func() {
+		if err := bq.Close(); err != nil {
+			t.Fatalf("error in closing bigqueue :: %v", err)
+		}
+	}()
+
+	var tag byte = 7
+	if err := bq.EnqueueWithTag(nil, tag); err != nil {
+		t.Fatalf("EnqueueWithTag with nil message failed :: %v", err)
+	}
+
+	gotMsg, gotTag, err := bq.DequeueWithTag()
+	if err != nil {
+		t.Fatalf("DequeueWithTag failed :: %v", err)
+	}
+	if gotTag != tag {
+		t.Fatalf("tag mismatch: expected %d, got %d", tag, gotTag)
+	}
+	if len(gotMsg) != 0 {
+		t.Fatalf("expected empty message, got length %d", len(gotMsg))
+	}
+}
+
+// TestEnqueueWithTagArenaOverlap verifies correct behaviour when the tag+data straddles
+// an arena boundary (the tag byte ends up in one arena and the data starts in the next).
+func TestEnqueueWithTagArenaOverlap(t *testing.T) {
+	t.Parallel()
+
+	arenaSize := 4 * 1024 // 4 KB
+	testDir := t.TempDir()
+	bq, err := NewMmapQueue(testDir, SetArenaSize(arenaSize))
+	if err != nil {
+		t.Fatalf("unable to get BigQueue :: %v", err)
+	}
+	defer func() {
+		if err := bq.Close(); err != nil {
+			t.Fatalf("error in closing bigqueue :: %v", err)
+		}
+	}()
+
+	// Fill the queue so the next enqueue's tag byte will land at the very end of an
+	// arena. arenaSize-8 bytes of data + 8 bytes length header = exactly one arena.
+	// The next EnqueueWithTag will write its 8-byte length at offset 0 of arena 1,
+	// pushing the tag+data to start exactly at offset 8, which is still in arena 1
+	// unless we craft the sizes more carefully. We instead use arenaSize-9 so the
+	// next write's length header fills the remaining 9 bytes (8 length + 1 tag) and
+	// the tag sits at the arena boundary.
+	filler := bytes.Repeat([]byte("x"), arenaSize-9)
+	if err := bq.Enqueue(filler); err != nil {
+		t.Fatalf("Enqueue filler failed :: %v", err)
+	}
+
+	msg := []byte("boundary-test")
+	var tag byte = 13
+	if err := bq.EnqueueWithTag(msg, tag); err != nil {
+		t.Fatalf("EnqueueWithTag failed :: %v", err)
+	}
+
+	// drain the filler
+	if _, err := bq.Dequeue(); err != nil {
+		t.Fatalf("Dequeue filler failed :: %v", err)
+	}
+
+	gotMsg, gotTag, err := bq.DequeueWithTag()
+	if err != nil {
+		t.Fatalf("DequeueWithTag failed :: %v", err)
+	}
+	if gotTag != tag {
+		t.Fatalf("tag mismatch: expected %d, got %d", tag, gotTag)
+	}
+	if !bytes.Equal(gotMsg, msg) {
+		t.Fatalf("message mismatch: expected %s, got %s", string(msg), string(gotMsg))
+	}
+}
+
+// TestEnqueueWithTagInterleavedWithEnqueue verifies that regular Enqueue/Dequeue messages
+// and tagged messages do not interfere with each other when interleaved.
+func TestEnqueueWithTagInterleavedWithEnqueue(t *testing.T) {
+	t.Parallel()
+
+	testDir := t.TempDir()
+	bq, err := NewMmapQueue(testDir)
+	if err != nil {
+		t.Fatalf("unable to get BigQueue :: %v", err)
+	}
+	defer func() {
+		if err := bq.Close(); err != nil {
+			t.Fatalf("error in closing bigqueue :: %v", err)
+		}
+	}()
+
+	plain := []byte("plain-message")
+	tagged := []byte("tagged-message")
+	var tag byte = 50
+
+	if err := bq.Enqueue(plain); err != nil {
+		t.Fatalf("Enqueue failed :: %v", err)
+	}
+	if err := bq.EnqueueWithTag(tagged, tag); err != nil {
+		t.Fatalf("EnqueueWithTag failed :: %v", err)
+	}
+	if err := bq.Enqueue(plain); err != nil {
+		t.Fatalf("Enqueue failed :: %v", err)
+	}
+
+	// dequeue plain
+	if gotMsg, err := bq.Dequeue(); err != nil {
+		t.Fatalf("Dequeue failed :: %v", err)
+	} else if !bytes.Equal(gotMsg, plain) {
+		t.Fatalf("plain message mismatch: expected %s, got %s", string(plain), string(gotMsg))
+	}
+
+	// dequeue tagged
+	gotMsg, gotTag, err := bq.DequeueWithTag()
+	if err != nil {
+		t.Fatalf("DequeueWithTag failed :: %v", err)
+	}
+	if gotTag != tag {
+		t.Fatalf("tag mismatch: expected %d, got %d", tag, gotTag)
+	}
+	if !bytes.Equal(gotMsg, tagged) {
+		t.Fatalf("tagged message mismatch: expected %s, got %s", string(tagged), string(gotMsg))
+	}
+
+	// dequeue plain again
+	if gotMsg, err := bq.Dequeue(); err != nil {
+		t.Fatalf("Dequeue failed :: %v", err)
+	} else if !bytes.Equal(gotMsg, plain) {
+		t.Fatalf("plain message mismatch: expected %s, got %s", string(plain), string(gotMsg))
+	}
+
+	if !bq.IsEmpty() {
+		t.Fatalf("queue should be empty")
+	}
+}
+
+// TestEnqueueWithTagMultipleConsumers verifies that multiple independent consumers each
+// receive the correct tag and payload from the same tagged messages.
+func TestEnqueueWithTagMultipleConsumers(t *testing.T) {
+	t.Parallel()
+
+	testDir := t.TempDir()
+	bq, err := NewMmapQueue(testDir)
+	if err != nil {
+		t.Fatalf("unable to get BigQueue :: %v", err)
+	}
+	defer func() {
+		if err := bq.Close(); err != nil {
+			t.Fatalf("error in closing bigqueue :: %v", err)
+		}
+	}()
+
+	c1, err := bq.NewConsumer("consumer-1")
+	if err != nil {
+		t.Fatalf("unable to create consumer-1 :: %v", err)
+	}
+	c2, err := bq.NewConsumer("consumer-2")
+	if err != nil {
+		t.Fatalf("unable to create consumer-2 :: %v", err)
+	}
+
+	type entry struct {
+		msg []byte
+		tag byte
+	}
+	entries := []entry{
+		{[]byte("msg-a"), 10},
+		{[]byte("msg-b"), 20},
+		{[]byte("msg-c"), 30},
+	}
+
+	for _, e := range entries {
+		if err := bq.EnqueueWithTag(e.msg, e.tag); err != nil {
+			t.Fatalf("EnqueueWithTag failed :: %v", err)
+		}
+	}
+
+	for _, consumer := range []*Consumer{c1, c2} {
+		for _, e := range entries {
+			gotMsg, gotTag, err := consumer.DequeueWithTag()
+			if err != nil {
+				t.Fatalf("consumer DequeueWithTag failed :: %v", err)
+			}
+			if gotTag != e.tag {
+				t.Fatalf("tag mismatch: expected %d, got %d", e.tag, gotTag)
+			}
+			if !bytes.Equal(gotMsg, e.msg) {
+				t.Fatalf("message mismatch: expected %s, got %s", string(e.msg), string(gotMsg))
+			}
+		}
+	}
+}
+
+// TestEnqueueWithTagPersistence verifies that tagged messages survive a queue close/reopen
+// cycle.
+func TestEnqueueWithTagPersistence(t *testing.T) {
+	t.Parallel()
+
+	testDir := t.TempDir()
+
+	msg := []byte("persisted payload")
+	var tag byte = 88
+
+	// write
+	bq, err := NewMmapQueue(testDir)
+	if err != nil {
+		t.Fatalf("unable to create BigQueue :: %v", err)
+	}
+	if err := bq.EnqueueWithTag(msg, tag); err != nil {
+		t.Fatalf("EnqueueWithTag failed :: %v", err)
+	}
+	if err := bq.Close(); err != nil {
+		t.Fatalf("error closing bigqueue :: %v", err)
+	}
+
+	// reopen and read
+	bq2, err := NewMmapQueue(testDir)
+	if err != nil {
+		t.Fatalf("unable to reopen BigQueue :: %v", err)
+	}
+	defer func() {
+		if err := bq2.Close(); err != nil {
+			t.Fatalf("error closing bigqueue :: %v", err)
+		}
+	}()
+
+	gotMsg, gotTag, err := bq2.DequeueWithTag()
+	if err != nil {
+		t.Fatalf("DequeueWithTag after reopen failed :: %v", err)
+	}
+	if gotTag != tag {
+		t.Fatalf("tag mismatch after reopen: expected %d, got %d", tag, gotTag)
+	}
+	if !bytes.Equal(gotMsg, msg) {
+		t.Fatalf("message mismatch after reopen: expected %s, got %s", string(msg), string(gotMsg))
+	}
+}

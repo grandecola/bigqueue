@@ -271,3 +271,73 @@ func BenchmarkStringNoCopy(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkEnqueueWithTag(b *testing.B) {
+	for _, param := range getBenchParams() {
+		b.Run(fmt.Sprintf("ArenaSize-%s/MessageSize-%s/MaxMem-%s", param.arenaSizeString,
+			param.messageSizeString, param.maxInMemArenaString), func(b *testing.B) {
+
+			dir := path.Join(os.TempDir(), "testdir")
+			createBenchDir(b, dir)
+
+			bq, err := NewMmapQueue(dir, SetArenaSize(param.arenaSize), SetPeriodicFlushOps(0),
+				SetMaxInMemArenas(param.maxInMemArenaCount), SetPeriodicFlushDuration(0))
+			if err != nil {
+				b.Fatalf("unable to create bigqueue: %v", err)
+			}
+
+			var tag byte = 1
+			b.ReportAllocs()
+			b.ResetTimer()
+			for range b.N {
+				if err := bq.EnqueueWithTag(param.message, tag); err != nil {
+					b.Fatalf("unable to enqueue: %v", err)
+				}
+			}
+
+			b.StopTimer()
+			if err := bq.Close(); err != nil {
+				b.Fatalf("unable to close bq: %v", err)
+			}
+			removeBenchDir(b, dir)
+		})
+	}
+}
+
+func BenchmarkDequeueWithTag(b *testing.B) {
+	for _, param := range getBenchParams() {
+		b.Run(fmt.Sprintf("ArenaSize-%s/MessageSize-%s/MaxMem-%s", param.arenaSizeString,
+			param.messageSizeString, param.maxInMemArenaString), func(b *testing.B) {
+
+			dir := path.Join(os.TempDir(), "testdir")
+			createBenchDir(b, dir)
+
+			bq, err := NewMmapQueue(dir, SetArenaSize(param.arenaSize), SetPeriodicFlushDuration(0),
+				SetMaxInMemArenas(param.maxInMemArenaCount), SetPeriodicFlushOps(0))
+			if err != nil {
+				b.Fatalf("unable to create bigqueue: %v", err)
+			}
+
+			var tag byte = 1
+			for range b.N {
+				if err := bq.EnqueueWithTag(param.message, tag); err != nil {
+					b.Fatalf("unable to enqueue: %v", err)
+				}
+			}
+
+			b.ReportAllocs()
+			b.ResetTimer()
+			for range b.N {
+				if _, _, err := bq.DequeueWithTag(); err != nil {
+					b.Fatalf("unable to dequeue: %v", err)
+				}
+			}
+
+			b.StopTimer()
+			if err := bq.Close(); err != nil {
+				b.Fatalf("unable to close bq: %v", err)
+			}
+			removeBenchDir(b, dir)
+		})
+	}
+}
