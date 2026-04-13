@@ -20,6 +20,10 @@ var (
 	// ErrDifferentQueues is returned when caller wants to copy
 	// offsets from a consumer from a different queue.
 	ErrDifferentQueues = errors.New("consumers from different queues")
+	// ErrInvalidQueueState is returned by BacklogBytes when the queue
+	// metadata is inconsistent (tail is behind head), which indicates
+	// data corruption.
+	ErrInvalidQueueState = errors.New("bigqueue: invalid queue state, tail is behind head")
 	// ErrTagTooLong is returned when the tag slice passed to EnqueueWithTag
 	// exceeds the maximum allowed length of 255 bytes.
 	ErrTagTooLong = errors.New("bigqueue: tag exceeds maximum length of 255 bytes")

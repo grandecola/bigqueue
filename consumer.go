@@ -12,6 +12,14 @@ func (c *Consumer) IsEmpty() bool {
 	return c.mq.isEmpty(c.base)
 }
 
+// BacklogBytes returns the number of bytes in the queue that have not yet been
+// consumed by this consumer. The value includes the 8-byte length prefix stored
+// before each message payload. Returns ErrInvalidQueueState if the queue
+// metadata is inconsistent (tail behind head).
+func (c *Consumer) BacklogBytes() (int64, error) {
+	return c.mq.backlogBytes(c.base)
+}
+
 // Dequeue removes an element from the queue and returns it.
 func (c *Consumer) Dequeue() ([]byte, error) {
 	return c.mq.dequeue(c.base)
