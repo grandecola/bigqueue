@@ -357,7 +357,7 @@ func BenchmarkBacklogBytes(b *testing.B) {
 	}
 
 	for _, param := range backlogParams {
-		b.Run(fmt.Sprintf("MessageSize-%s", param.messageSizeString), func(b *testing.B) {
+		b.Run("MessageSize-"+param.messageSizeString, func(b *testing.B) {
 			dir := path.Join(os.TempDir(), "testdir")
 			createBenchDir(b, dir)
 
