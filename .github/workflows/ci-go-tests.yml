@@ -9,6 +9,7 @@ on:
       - ready_for_review
     branches:
       - main
+      - dev
 
 jobs:
   ci-go-tests:
