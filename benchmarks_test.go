@@ -341,3 +341,51 @@ func BenchmarkDequeueWithTag(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkBacklogBytes measures the cost of calling BacklogBytes after enqueuing
+// messages of varying sizes (1 B, 2 MB, 200 MB).
+func BenchmarkBacklogBytes(b *testing.B) {
+	messageBase := "abcdefghijlkmnopqrstuvwxyzABCDEF"
+
+	backlogParams := []struct {
+		message           []byte
+		messageSizeString string
+	}{
+		{[]byte("x"), "1B"},
+		{bytes.Repeat([]byte(messageBase), 64*1024), "2MB"},
+		{bytes.Repeat([]byte(messageBase), 6400*1024), "200MB"},
+	}
+
+	for _, param := range backlogParams {
+		b.Run(fmt.Sprintf("MessageSize-%s", param.messageSizeString), func(b *testing.B) {
+			dir := path.Join(os.TempDir(), "testdir")
+			createBenchDir(b, dir)
+
+			bq, err := NewMmapQueue(dir, SetPeriodicFlushDuration(0), SetPeriodicFlushOps(0))
+			if err != nil {
+				b.Fatalf("unable to create bigqueue: %v", err)
+			}
+
+			// Pre-fill the queue with b.N messages so BacklogBytes has real data.
+			for range b.N {
+				if err := bq.Enqueue(param.message); err != nil {
+					b.Fatalf("unable to enqueue: %v", err)
+				}
+			}
+
+			b.ReportAllocs()
+			b.ResetTimer()
+			for range b.N {
+				if _, err := bq.BacklogBytes(); err != nil {
+					b.Fatalf("BacklogBytes failed: %v", err)
+				}
+			}
+
+			b.StopTimer()
+			if err := bq.Close(); err != nil {
+				b.Fatalf("unable to close bq: %v", err)
+			}
+			removeBenchDir(b, dir)
+		})
+	}
+}
