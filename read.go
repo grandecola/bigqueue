@@ -27,6 +27,32 @@ func (q *MmapQueue) isEmptyNoLock(base int64) bool {
 	return headAid == tailAid && headOffset == tailOffset
 }
 
+// BacklogBytes returns the number of bytes in the queue that have not yet been
+// consumed by the default consumer. The value includes the 8-byte length prefix
+// stored before each message payload. Returns ErrInvalidQueueState if the queue
+// metadata is inconsistent (tail behind head).
+func (q *MmapQueue) BacklogBytes() (int64, error) {
+	return q.backlogBytes(q.dc)
+}
+
+func (q *MmapQueue) backlogBytes(base int64) (int64, error) {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+
+	return q.backlogBytesNoLock(base)
+}
+
+func (q *MmapQueue) backlogBytesNoLock(base int64) (int64, error) {
+	headAid, headOffset := q.md.getConsumerHead(base)
+	tailAid, tailOffset := q.md.getTail()
+
+	n := int64(tailAid-headAid)*int64(q.conf.arenaSize) + int64(tailOffset-headOffset)
+	if n < 0 {
+		return 0, ErrInvalidQueueState
+	}
+	return n, nil
+}
+
 // Dequeue removes an element from the queue and returns it.
 // This function uses the default consumer to consume from the queue.
 func (q *MmapQueue) Dequeue() ([]byte, error) {
