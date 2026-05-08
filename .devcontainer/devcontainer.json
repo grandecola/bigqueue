@@ -1,0 +1,14 @@
+{
+  "name": "bigqueue-go-1.25",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go"
+      ]
+    }
+  },
+  "postCreateCommand": "go version"
+}

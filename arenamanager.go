@@ -69,7 +69,7 @@ func (m *arenaManager) getArena(aid int) (*mmap.File, error) {
 		return nil, err
 	}
 
-	return m.arenas[aid], nil
+	return m.arenas[aid-m.baseAid], nil
 }
 
 // ensureEnoughMem ensures that at least 1 new arena can be brought into memory.

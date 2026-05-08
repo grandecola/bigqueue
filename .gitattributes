@@ -1,0 +1,12 @@
+.devcontainer/  export-ignore
+.vscode/        export-ignore
+.github/        export-ignore
+.travis.yml     export-ignore
+.gitlab-ci.yml  export-ignore
+testdata/       export-ignore
+*.test          export-ignore
+*.out           export-ignore
+CONTRIBUTING.md export-ignore
+docs/internal/  export-ignore
+Makefile        export-ignore
+scripts/        export-ignore
