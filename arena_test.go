@@ -21,6 +21,10 @@ func TestNewArenaNoDir(t *testing.T) {
 func TestNewArenaNoReadPerm(t *testing.T) {
 	t.Parallel()
 
+	if os.Geteuid() == 0 {
+		t.Skip("permission-based test is unreliable when run as root")
+	}
+
 	fileName := path.Join(os.TempDir(), fmt.Sprintf("%d-temp.dat", time.Now().UnixNano()))
 	defer func() {
 		if err := os.Remove(fileName); err != nil {
@@ -32,7 +36,7 @@ func TestNewArenaNoReadPerm(t *testing.T) {
 		t.Fatalf("unable to create file :: %v", err)
 	}
 
-	aa, err := newArena("/temp.dat", 100)
+	aa, err := newArena(fileName, 100)
 	if aa != nil || err == nil || !os.IsPermission(errors.Unwrap(err)) {
 		t.Fatalf("unexpected return for newArena :: %v", err)
 	}
