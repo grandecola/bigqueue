@@ -22,14 +22,17 @@ var (
 	ErrTooSmallArenaSize = errors.New("too small arena size")
 	// ErrTooFewInMemArenas is returned when number of arenas allowed in memory < 3.
 	ErrTooFewInMemArenas = errors.New("too few in memory arenas")
+	// ErrNegativeMaxArenasToKeep is returned when max arenas to keep is negative.
+	ErrNegativeMaxArenasToKeep = errors.New("max arenas to keep cannot be negative")
 )
 
 // bqConfig stores all the configuration related to bigqueue.
 type bqConfig struct {
-	arenaSize      int
-	maxInMemArenas int
-	flushMutOps    int64
-	flushPeriod    time.Duration
+	arenaSize       int
+	maxInMemArenas  int
+	maxArenasToKeep int
+	flushMutOps     int64
+	flushPeriod     time.Duration
 }
 
 // Option is function type that takes a bqConfig object
@@ -39,10 +42,11 @@ type Option func(*bqConfig) error
 // newConfig creates an object of bqConfig with default parameter values.
 func newConfig() *bqConfig {
 	return &bqConfig{
-		arenaSize:      cDefaultArenaSize,
-		maxInMemArenas: cMinMaxInMemArenas,
-		flushMutOps:    cDefaultMutOps,
-		flushPeriod:    cDefaultflushPeriod,
+		arenaSize:       cDefaultArenaSize,
+		maxInMemArenas:  cMinMaxInMemArenas,
+		maxArenasToKeep: 0,
+		flushMutOps:     cDefaultMutOps,
+		flushPeriod:     cDefaultflushPeriod,
 	}
 }
 
@@ -105,3 +109,18 @@ func SetPeriodicFlushDuration(flushPeriod time.Duration) Option {
 		return nil
 	}
 }
+
+// SetMaxArenasToKeep returns an Option that sets the maximum number of arena
+// files to keep on disk. When a new arena is created, or when the queue is
+// opened, any arena files with an ID less than (min(consumer heads) - maxArenasToKeep)
+// will be deleted. If maxArenasToKeep is 0 (default), no arena files are deleted.
+func SetMaxArenasToKeep(maxArenasToKeep int) Option {
+	return func(c *bqConfig) error {
+		if maxArenasToKeep < 0 {
+			return ErrNegativeMaxArenasToKeep
+		}
+		c.maxArenasToKeep = maxArenasToKeep
+		return nil
+	}
+}
+

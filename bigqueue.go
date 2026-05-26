@@ -232,3 +232,11 @@ func (q *MmapQueue) periodicFlush() {
 		}
 	}
 }
+
+// GC will trigger the garbage collection of the arena files.
+func (q *MmapQueue) GC() {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+
+	q.am.gc()
+}

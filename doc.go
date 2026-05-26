@@ -5,21 +5,29 @@
 //
 // Create or open a bigqueue:
 //
-//	bq, err := bigqueue.NewQueue("path/to/queue")
+//	bq, err := bigqueue.NewMmapQueue("path/to/queue")
 //	defer bq.Close()
 //
 // bigqueue persists the data of the queue in multiple Arenas.
 // Each Arena is a file on disk that is mapped into memory (RAM)
 // using mmap syscall. Default size of each Arena is set to 128MB.
+// Garbage Collection (GC) can be configured to automatically delete
+// arena files that have been fully consumed:
+//
+//     bq, err := bigqueue.NewMmapQueue("path/to/queue", bigqueue.SetMaxArenasToKeep(10))
+//
+// Or triggered manually:
+//
+//     bq.GC()
 // It is possible to create a bigqueue with custom Arena size:
 //
-//	bq, err := bigqueue.NewQueue("path/to/queue", bigqueue.SetArenaSize(4*1024))
+//	bq, err := bigqueue.NewMmapQueue("path/to/queue", bigqueue.SetArenaSize(4*1024))
 //	defer bq.Close()
 //
 // bigqueue also allows setting up the maximum possible memory that it
 // can use. By default, the maximum memory is set to [3 x Arena Size].
 //
-//	 bq, err := bigqueue.NewQueue("path/to/queue", bigqueue.SetArenaSize(4*1024),
+//	 bq, err := bigqueue.NewMmapQueue("path/to/queue", bigqueue.SetArenaSize(4*1024),
 //		     bigqueue.SetMaxInMemArenas(10))
 //	 defer bq.Close()
 //
@@ -33,11 +41,11 @@
 //
 // This is how we can set these options:
 //
-//	bq, err := bigqueue.NewQueue("path/to/queue", bigqueue.SetPeriodicFlushOps(2))
+//	bq, err := bigqueue.NewMmapQueue("path/to/queue", bigqueue.SetPeriodicFlushOps(2))
 //
 // In this case, a flush is done after every two mutate operations.
 //
-//	bq, err := bigqueue.NewQueue("path/to/queue", bigqueue.SetPeriodicFlushDuration(time.Minute))
+//	bq, err := bigqueue.NewMmapQueue("path/to/queue", bigqueue.SetPeriodicFlushDuration(time.Minute))
 //
 // In this case, a flush is done after one minute elapses and an Enqueue/Dequeue is called.
 //
