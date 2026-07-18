@@ -32,7 +32,7 @@ linters:
     - godox
     - goheader
     - gomoddirectives
-    - gomodguard
+    - gomodguard_v2
     - goprintffuncname
     # - gosec
     - gosmopolitan

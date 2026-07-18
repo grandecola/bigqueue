@@ -132,7 +132,7 @@ func TestEnqueueLargeMessage(t *testing.T) {
 		}
 	}()
 
-	msg := make([]byte, 0)
+	msg := make([]byte, 0, cDefaultArenaSize-8)
 	for range cDefaultArenaSize - 8 {
 		m := []byte("a")
 		msg = append(msg, m...)
@@ -166,7 +166,7 @@ func TestEnqueueOverlapLength(t *testing.T) {
 		}
 	}()
 
-	msg1 := make([]byte, 0)
+	msg1 := make([]byte, 0, cDefaultArenaSize-12)
 	for range cDefaultArenaSize - 12 {
 		m := []byte("a")
 		msg1 = append(msg1, m...)
@@ -175,7 +175,7 @@ func TestEnqueueOverlapLength(t *testing.T) {
 		t.Fatalf("enqueue failed :: %v", err)
 	}
 
-	msg2 := make([]byte, 0)
+	msg2 := make([]byte, 0, cDefaultArenaSize-4)
 	for range cDefaultArenaSize - 4 {
 		m := []byte("a")
 		msg2 = append(msg2, m...)
@@ -216,7 +216,7 @@ func TestEnqueueLargeNumberOfMessages(t *testing.T) {
 	}()
 
 	numMessages := 10
-	lengths := make([]int, 0)
+	lengths := make([]int, 0, numMessages)
 	alphabets := "abcdefghijklmnopqrstuvwxyz"
 	for range numMessages {
 		msgLen := rand.Intn(cDefaultArenaSize) + cDefaultArenaSize
