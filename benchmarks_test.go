@@ -17,6 +17,7 @@ type benchParam struct {
 	maxInMemArenaString string
 }
 
+//nolint:goconst // size labels are clearer inline in the table than as named constants
 func getBenchParams() []benchParam {
 	messageBase := "abcdefghijlkmnopqrstuvwxyzABCDEF"
 	// message 128 bytes
