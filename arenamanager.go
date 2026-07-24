@@ -2,8 +2,8 @@ package bigqueue
 
 import (
 	"fmt"
+	"os"
 	"path"
-	"strconv"
 	"syscall"
 
 	"github.com/grandecola/mmap"
@@ -15,28 +15,22 @@ const (
 
 // arenaManager manages all the arenas for a bigqueue
 type arenaManager struct {
-	dir      string
-	conf     *bqConfig
-	md       *metadata
-	baseAid  int
-	arenas   []*mmap.File
-	inMem    int
-	fullPath []byte
+	dir    string
+	conf   *bqConfig
+	md     *metadata
+	arenas map[int]*mmap.File
+	inMem  int
 }
 
 // newArenaManager returns a pointer to new arenaManager.
 func newArenaManager(dir string, conf *bqConfig, md *metadata) (*arenaManager, error) {
-	headAid, _ := md.getHead()
 	tailAid, _ := md.getTail()
 
-	numArenas := tailAid + 1 - headAid
-	arenas := make([]*mmap.File, numArenas)
 	am := &arenaManager{
-		dir:     path.Clean(dir),
-		conf:    conf,
-		md:      md,
-		baseAid: headAid,
-		arenas:  arenas,
+		dir:    path.Clean(dir),
+		conf:   conf,
+		md:     md,
+		arenas: make(map[int]*mmap.File),
 	}
 
 	// we load the tail arena into memory
@@ -44,19 +38,80 @@ func newArenaManager(dir string, conf *bqConfig, md *metadata) (*arenaManager, e
 		return nil, err
 	}
 
+	am.gc()
+
 	return am, nil
 }
 
-// getArena returns arena for a given arena ID
-func (m *arenaManager) getArena(aid int) (*mmap.File, error) {
-	relAid := aid - m.baseAid
-	if relAid == len(m.arenas) {
-		m.arenas = append(m.arenas, nil)
+// gc deletes the arena files that are no longer needed.
+func (m *arenaManager) gc() {
+	if m.conf.maxArenasToKeep <= 0 {
+		return
 	}
-	aa := m.arenas[relAid]
-	if aa != nil {
+
+	// find the minimum consumer head aid
+	minHeadAid, minHeadOff := -1, -1
+	for _, base := range m.md.co {
+		aid, off := m.md.getConsumerHead(base)
+		if minHeadAid == -1 || aid < minHeadAid || (aid == minHeadAid && off < minHeadOff) {
+			minHeadAid = aid
+			minHeadOff = off
+		}
+	}
+
+	if minHeadAid == -1 {
+		return
+	}
+
+	// update global head to the minimum among all consumers.
+	// this is to ensure new consumers start from the earliest available data.
+	m.md.putHead(minHeadAid, minHeadOff)
+	if err := m.md.flush(); err != nil {
+		// handle the error if needed
+		return
+	}
+
+	// we keep maxArenasToKeep arenas before the minHeadAid
+	// everything before (minHeadAid - maxArenasToKeep) can be deleted.
+	limitAid := minHeadAid - m.conf.maxArenasToKeep
+	if limitAid <= 0 {
+		return
+	}
+
+	// startAid - we can delete from 0 up to limitAid-1.
+	for aid := 0; aid < limitAid; aid++ {
+		// remove from memory if loaded
+		if aa, ok := m.arenas[aid]; ok && aa != nil {
+			_ = m.unloadArena(aid)
+		}
+		delete(m.arenas, aid)
+
+		arenaPath := m.getArenaPath(aid)
+		if _, err := os.Stat(arenaPath); err == nil {
+			if err := os.Remove(arenaPath); err != nil {
+			} else {
+			}
+		}
+	}
+}
+
+// getArenaPath returns the full path for a given arena ID.
+func (m *arenaManager) getArenaPath(aid int) string {
+	fileName := fmt.Sprintf("%d%s", aid, cArenaFileSuffix)
+	return path.Join(m.dir, fileName)
+}
+
+// loadOrGetArena returns arena for a given arena ID
+func (m *arenaManager) getArena(aid int) (*mmap.File, error) {
+	if aa, ok := m.arenas[aid]; ok && aa != nil {
 		return aa, nil
 	}
+
+	// if this is a new arena being requested (tail expansion)
+	// getTail doesn't help here because writer might be calling it before metadata update
+	// but basically if it's not in the map, we try to load or create it.
+	// In the original slice logic, relAid == len(m.arenas) triggered GC.
+	// Here we can check if it's beyond a certain aid or just trigger GC occasionally.
 
 	// before we get a new arena into memory, we need to ensure that after fetching
 	// a new arena into memory, we do not cross the provided memory limit.
@@ -68,6 +123,8 @@ func (m *arenaManager) getArena(aid int) (*mmap.File, error) {
 	if err := m.loadArena(aid); err != nil {
 		return nil, err
 	}
+
+	m.gc()
 
 	return m.arenas[aid], nil
 }
@@ -90,19 +147,16 @@ func (m *arenaManager) ensureEnoughMem() error {
 	// Simply iterate from the last arena until enough memory is
 	// available for a new arena to be loaded into memory
 	tailAid, _ := m.md.getTail()
-	curAid := m.baseAid + len(m.arenas)
-	for m.conf.maxInMemArenas-m.inMem <= 0 {
-		curAid--
-
-		if curAid < 0 {
-			panic("not enough memory to hold arenas in memory")
+	headAid, _ := m.md.getHead()
+	for aid, aa := range m.arenas {
+		if m.inMem < m.conf.maxInMemArenas {
+			break
 		}
 
-		if curAid == tailAid {
+		if aid == tailAid || aid == headAid || aa == nil {
 			continue
 		}
-
-		if err := m.unloadArena(curAid); err != nil {
+		if err := m.unloadArena(aid); err != nil {
 			return err
 		}
 	}
@@ -112,36 +166,33 @@ func (m *arenaManager) ensureEnoughMem() error {
 
 // loadArena will fetch the arena into memory.
 func (m *arenaManager) loadArena(aid int) error {
-	if m.arenas[aid-m.baseAid] != nil {
+	if aa, ok := m.arenas[aid]; ok && aa != nil {
 		return nil
 	}
 
-	m.fullPath = append(m.fullPath[:0], m.dir...)
-	m.fullPath = append(m.fullPath, '/')
-	m.fullPath = strconv.AppendInt(m.fullPath, int64(aid), 10)
-	m.fullPath = append(m.fullPath, cArenaFileSuffix...)
-	aa, err := newArena(string(m.fullPath), m.conf.arenaSize)
+	arenaPath := m.getArenaPath(aid)
+	aa, err := newArena(arenaPath, m.conf.arenaSize)
 	if err != nil {
 		return err
 	}
 
 	m.inMem++
-	m.arenas[aid-m.baseAid] = aa
+	m.arenas[aid] = aa
 	return nil
 }
 
 // unloadArena will remove the arena from memory.
 func (m *arenaManager) unloadArena(aid int) error {
-	if m.arenas[aid-m.baseAid] == nil {
+	aa, ok := m.arenas[aid]
+	if !ok || aa == nil {
 		return nil
 	}
-
-	if err := m.arenas[aid-m.baseAid].Unmap(); err != nil {
+	if err := aa.Unmap(); err != nil {
 		return fmt.Errorf("error in unmap :: %w", err)
 	}
 
 	m.inMem--
-	m.arenas[aid-m.baseAid] = nil
+	delete(m.arenas, aid)
 	return nil
 }
 
@@ -166,7 +217,7 @@ func (m *arenaManager) flush() error {
 // close unmaps all the arenas managed by arenaManager.
 func (m *arenaManager) close() error {
 	var retErr error
-	for _, aa := range m.arenas {
+	for id, aa := range m.arenas {
 		if aa == nil {
 			continue
 		}
@@ -174,6 +225,7 @@ func (m *arenaManager) close() error {
 		if err := aa.Unmap(); err != nil {
 			retErr = err
 		}
+		delete(m.arenas, id)
 	}
 
 	if retErr != nil {
