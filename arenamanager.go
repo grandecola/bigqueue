@@ -66,7 +66,10 @@ func (m *arenaManager) gc() {
 	// update global head to the minimum among all consumers.
 	// this is to ensure new consumers start from the earliest available data.
 	m.md.putHead(minHeadAid, minHeadOff)
-	_ = m.md.flush()
+	if err := m.md.flush(); err != nil {
+		// handle the error if needed
+		return
+	}
 
 	// we keep maxArenasToKeep arenas before the minHeadAid
 	// everything before (minHeadAid - maxArenasToKeep) can be deleted.
